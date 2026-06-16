@@ -417,7 +417,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.10.4</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.11.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -477,6 +477,13 @@
         </div>
         <div class="library" id="library" style="display:none">
           <h4 data-i18n="home.library">Reprendre une lecture</h4>
+          <div id="libToolbar" style="display:none;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 0 12px">
+            <input type="text" id="libSearch" data-i18n-ph="lib.search" style="display:none;flex:1 1 220px;max-width:320px;background:rgba(0,0,0,.3);border:1px solid var(--panel-brd);border-radius:11px;color:var(--txt);font:inherit;font-size:13px;padding:8px 12px">
+            <div class="lib-sort" style="display:flex;gap:6px">
+              <button class="lg-btn" data-sort="recent" data-i18n="lib.sortRecent">🕐 Récents</button>
+              <button class="lg-btn" data-sort="az" data-i18n="lib.sortAz">A → Z</button>
+            </div>
+          </div>
           <div class="lib-chips" id="libChips"></div>
         </div>
         <p class="hint" id="homeHint" style="margin-top:18px"></p>
@@ -2008,7 +2015,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.10.4";
+const VERSION = "1.11.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2034,6 +2041,7 @@ const I18N = {
   "home.title":"Donnez vie à vos lectures",
   "home.sub":"Chargez un livre ou un chapitre. StoryVoice en tire des <b>résumés à la carte</b>, une <b>constellation vivante</b> des personnages qui se révèle au fil de votre lecture — sans spoiler — et bientôt une <b>narration multi-voix</b>.",
   "home.load":"✍️ Charger un livre","home.demo":"✦ ou découvrir avec la démo (Sherlock Holmes)","home.library":"Reprendre une lecture","lib.continue":"Continuer",
+  "lib.search":"🔎 Rechercher un livre…","lib.sortRecent":"🕐 Récents","lib.sortAz":"A → Z","lib.noMatch":"Aucun livre ne correspond.",
   "home.hint":"Astuce : commencez par la démo pour voir la constellation se former.",
   "how.s1t":"Chargez un livre","how.s1d":"Un fichier TXT ou EPUB — le livre entier, ou seulement les chapitres déjà lus.",
   "how.s2t":"StoryVoice le lit pour vous","how.s2d":"Une seule analyse en tire résumés, personnages, lieux et relations.",
@@ -2087,6 +2095,7 @@ const I18N = {
   "home.title":"Bring your books to life",
   "home.sub":"Load a book or a chapter. StoryVoice gives you <b>summaries on demand</b>, a <b>living constellation</b> of characters that unfolds as you read — spoiler-free — and soon a <b>multi-voice narration</b>.",
   "home.load":"✍️ Load a book","home.demo":"✦ or explore with the demo (Sherlock Holmes)","home.library":"Resume a reading","lib.continue":"Continue",
+  "lib.search":"🔎 Search a book…","lib.sortRecent":"🕐 Recent","lib.sortAz":"A → Z","lib.noMatch":"No matching book.",
   "home.hint":"Tip: start with the demo to watch the constellation form.",
   "how.s1t":"Load a book","how.s1d":"A TXT or EPUB file — the whole book, or just the chapters you've read.",
   "how.s2t":"StoryVoice reads it for you","how.s2d":"A single analysis extracts summaries, characters, places and relationships.",
@@ -2909,9 +2918,23 @@ function relDate(ts){ if(!ts)return""; const s=(Date.now()-ts)/1000; if(s<60)ret
 function renderLibrary(){
   const empty=!S.persist||!library.length;
   if($("#howto")) $("#howto").style.display=empty?"flex":"none"; // onboarding visible au 1er usage uniquement
-  if(empty){ $("#library").style.display="none"; $("#libChips").innerHTML=""; return; }
+  if(empty){ $("#library").style.display="none"; $("#libChips").innerHTML=""; const tb0=$("#libToolbar"); if(tb0)tb0.style.display="none"; return; }
   $("#library").style.display="block";
-  $("#libChips").innerHTML=library.map(b=>{
+  // barre d'outils : tri visible dès >3 livres, recherche dès >6 (discret sinon)
+  const tb=$("#libToolbar"), srch=$("#libSearch"), showTb=library.length>3, showSrch=library.length>6;
+  if(tb) tb.style.display=showTb?"flex":"none";
+  if(srch){ srch.style.display=showSrch?"":"none"; if(!showSrch) srch.value=""; }
+  const sort=S.libSort||"recent";
+  $$("#libToolbar [data-sort]").forEach(b=>b.classList.toggle("on", b.dataset.sort===sort));
+  // tri d'AFFICHAGE (n'altère pas l'ordre stocké)
+  let list=library.slice();
+  if(sort==="az") list.sort((a,b)=>(a.title||"").localeCompare(b.title||"","fr",{sensitivity:"base"}));
+  else list.sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
+  // filtre recherche (accent-insensible)
+  const q=(showSrch&&srch?norm(srch.value):"").trim();
+  if(q) list=list.filter(b=>norm(b.title||"").indexOf(q)>=0);
+  if(!list.length){ $("#libChips").innerHTML=`<div class="hint" style="color:var(--txt-faint)">${t("lib.noMatch")}</div>`; return; }
+  $("#libChips").innerHTML=list.map(b=>{
     const pct=b.readPct!=null?Math.max(0,Math.min(100,b.readPct)):0;
     const meta=[(b.chapters?b.chapters+" ch":""),(b.savedAt?t("lib.read")+" "+relDate(b.savedAt):"")].filter(Boolean).join(" · ");
     return `<span class="lib-chip" data-id="${b.id}" style="align-items:stretch;gap:9px">${b.coverThumb?`<span style="width:44px;height:44px;border-radius:9px;background:url('${b.coverThumb}') center/cover;flex:0 0 auto;align-self:center;box-shadow:0 2px 8px rgba(0,0,0,.4)"></span>`:""}
@@ -2945,6 +2968,9 @@ $("#libChips").addEventListener("click",e=>{
     confirmAction(t("lib.delConfirm").replace("{t}",ti), ()=>{ const id=del.dataset.del; idbDelByBook(id); /* cascade : audio+seg+trad liés supprimés */ library=library.filter(x=>x.id!==id); if(S.lastBook===id) S.lastBook=null; saveStore(); renderLibrary(); toast(t("lib.deleted")); }); return; }
   const chip=e.target.closest("[data-id]"); if(!chip)return; const b=library.find(x=>x.id===chip.dataset.id); openCachedBook(b);
 });
+// Tri + recherche de la bibliothèque (Accueil)
+if($("#libToolbar")) $("#libToolbar").addEventListener("click",e=>{ const b=e.target.closest("[data-sort]"); if(!b)return; S.libSort=b.dataset.sort; saveStore(); renderLibrary(); });
+if($("#libSearch")) $("#libSearch").addEventListener("input",()=>renderLibrary());
 function openCachedBook(b){ if(!b)return; state.analysis=b.analysis; state.rawChapters=b.rawChapters||[]; state.voiceMap=b.voiceMap||{}; state.marks=b.marks||[]; state.currentId=b.id; state.pendingHash=b.contentHash||null; state.pendingBookFp=b.bookFp||null; applyBookVoice(b.vset); /* réglages voix PAR LIVRE (ton/voix/vitesse/moteur) — défaut global si absent */ enableTabs(); buildGraph(); setRead(b.readPct!=null?b.readPct:100); renderSummaries();
   state.askHistory=b.askHistory||[]; // fil Q&A restauré PAR LIVRE (buildGraph l'avait vidé)
   // reprise de lecture : rouvrir la liseuse au chapitre + scroll sauvegardés
@@ -3425,19 +3451,22 @@ function setChromeHidden(hide){ if(hide===_chromeHidden) return; _chromeHidden=h
   const h=document.querySelector("header"), a=$("#activeBar");
   if(h) h.classList.toggle("chrome-hidden",hide);
   if(a && a.style.display!=="none") a.classList.toggle("chrome-hidden",hide); }
-const SCROLL_TABS=["read","sum","ask","listen"]; // onglets où le chrome se masque au scroll sur mobile. « ask » : depuis v1.10.4 Demander scrolle TOUTE la vue (#askView, input sticky) comme la liseuse → auto-masquage identique à Lire, plus de collision (cf bugs device 16/06).
+const SCROLL_TABS=["home","read","sum","ask","listen"]; // onglets où le chrome se masque au scroll sur mobile. « ask » : depuis v1.10.4 Demander scrolle TOUTE la vue (#askView, input sticky) comme la liseuse → auto-masquage identique à Lire, plus de collision (cf bugs device 16/06). « home » ajouté v1.11.0 (biblio scrollable).
 function autoHideChrome(y){
   if(!isMobileView() || SCROLL_TABS.indexOf(state.tab)<0){ setChromeHidden(false); _lastScrollY=y; return; }
-  // COOLDOWN anti-tremblement : masquer/afficher le chrome décale le scrollTop (de la hauteur du chrome),
-  // ce qui refire un événement scroll en sens inverse → boucle infinie. On absorbe ce scroll induit pendant ~420ms.
+  // TOUT EN HAUT → toujours visible. PRIORITAIRE sur le cooldown : si masquer le chrome fait « rentrer » le
+  // contenu (devient non-scrollable → scrollTop forcé à 0), cet événement DOIT réafficher le chrome, sinon il
+  // reste bloqué masqué (bug device 16/06). C'est légitime (≠ tremblement, qui se produit à scrollTop élevé).
+  if(y<48){ setChromeHidden(false); _lastScrollY=y; return; }
+  // COOLDOWN anti-tremblement : masquer/afficher décale le scrollTop (de la hauteur du chrome) → refire un
+  // scroll en sens inverse → boucle. On absorbe ce scroll induit pendant ~420ms (sauf le « tout en haut » ci-dessus).
   if(Date.now()-_chromeToggleAt < 420){ _lastScrollY=y; return; }
-  if(y<48){ setChromeHidden(false); }                              // tout en haut → toujours visible
-  else if(y-_lastScrollY>8){ setChromeHidden(true); }              // scroll vers le bas franc → masquer
+  if(y-_lastScrollY>8){ setChromeHidden(true); }                   // scroll vers le bas franc → masquer
   else if(_lastScrollY-y>10){ setChromeHidden(false); }            // scroll vers le haut franc → réafficher
   _lastScrollY=y; }
 $("#readView").addEventListener("scroll",()=>{ if(state.tab==="read"&&state.analysis){ persistReaderPos(); maybeAutoAdvanceScroll(); } autoHideChrome($("#readView").scrollTop); });
 // mêmes auto-masquage sur les autres onglets scrollables (conteneurs de scroll propres à chaque onglet)
-["#sumView","#listenView","#askView"].forEach(sel=>{ const el=$(sel); if(el) el.addEventListener("scroll",()=>{ if(SCROLL_TABS.indexOf(state.tab)>=0) autoHideChrome(el.scrollTop); }); }); // vues à scroll plein (comme #readView) → auto-masquage chrome identique à Lire
+["#homeView","#sumView","#listenView","#askView"].forEach(sel=>{ const el=$(sel); if(el) el.addEventListener("scroll",()=>{ if(SCROLL_TABS.indexOf(state.tab)>=0) autoHideChrome(el.scrollTop); }); }); // vues à scroll plein (comme #readView) → auto-masquage chrome identique à Lire
 
 /* ---------------- Recherche plein-texte dans le livre (roadmap #1) ---------------- */
 // fold = minuscule + accents retirés en 1:1 (chaque remplacement = 1 caractère → les offsets restent EXACTS dans le texte d'origine)
