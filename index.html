@@ -253,6 +253,7 @@
   .rel-go{color:var(--cyan);cursor:pointer;border-bottom:1px dotted transparent;transition:.15s}
   .rel-go:hover{border-bottom-color:var(--cyan);text-shadow:0 0 8px rgba(70,224,255,.5)}
   .fam-tree{position:absolute;inset:0;overflow:auto;padding:34px 24px 70px;z-index:3}
+  .fam-zoom{position:relative;transform-origin:0 0;width:max-content;min-width:100%}
   .fam-gens{position:relative;display:flex;flex-direction:column;gap:56px;min-width:max-content;margin:0 auto;z-index:2}
   .fam-row{display:flex;gap:24px;justify-content:center;position:relative}
   .fam-node{background:var(--panel);border:1px solid var(--panel-brd);border-radius:12px;padding:9px 14px;min-width:88px;text-align:center;cursor:pointer;backdrop-filter:blur(6px);transition:.15s}
@@ -315,7 +316,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v0.94.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v0.95.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -1861,7 +1862,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "0.94.0";
+const VERSION = "0.95.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2887,9 +2888,14 @@ let drag=null;
 function pick(px,py){ const r=cv.getBoundingClientRect(); const mx=(px-r.left-r.width/2)/cam.z, my=(py-r.top-r.height/2)/cam.z;
   let best=null,bd=1e9; for(const n of G.nodes){ if(!visN(n))continue; const pr=project(n); const d=Math.hypot(pr.x-mx,pr.y-my); const rad=(n.main?13:6.5)*2.2*pr.sc+8; if(d<rad&&d<bd){bd=d;best=n;} } return best; }
 cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,moved:false,rx:rot.x,ry:rot.y};});
-cv.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;rot.y=drag.ry+dx*0.006;rot.x=Math.max(-1.45,Math.min(1.45,drag.rx+dy*0.006));});
+cv.addEventListener("pointermove",e=>{if(_pinch||!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;rot.y=drag.ry+dx*0.006;rot.x=Math.max(-1.45,Math.min(1.45,drag.rx+dy*0.006));});
 cv.addEventListener("pointerup",e=>{if(drag&&!drag.moved){const n=pick(e.clientX,e.clientY);if(n)openNode(n);else closeNode();}drag=null;});
 cv.addEventListener("wheel",e=>{e.preventDefault();const f=e.deltaY<0?1.12:0.89;cam.z=Math.max(.3,Math.min(3.5,cam.z*f));},{passive:false});
+// Pinch-to-zoom tactile (2 doigts) sur la constellation — mobile
+let _pinch=null; const _tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+cv.addEventListener("touchstart",e=>{ if(e.touches.length===2){ _pinch={d:_tdist(e.touches),z:cam.z}; drag=null; e.preventDefault(); } },{passive:false});
+cv.addEventListener("touchmove",e=>{ if(_pinch&&e.touches.length===2){ const d=_tdist(e.touches); if(_pinch.d>0) cam.z=Math.max(.3,Math.min(3.5,_pinch.z*d/_pinch.d)); e.preventDefault(); } },{passive:false});
+cv.addEventListener("touchend",e=>{ if(e.touches.length<2) _pinch=null; });
 function openNode(n){ state.selected=n; const a=state.analysis;
   $("#npName").textContent=n.name||n.id; $("#npAlias").textContent=n.known_as?("« "+n.known_as+" »"):""; $("#npNote").textContent=n.note||"";
   const rels=(a.relations||[]).filter(r=>(r.from===n.id||r.to===n.id)&&r.reveal_pct<=state.readPct);
@@ -2935,18 +2941,23 @@ function renderFamilyTree(){ const host=$("#famTree"); if(!host)return; const fa
   const col=e=> e.gender==="f"?"#ff9ed6":e.gender==="m"?"#8fd0ff":"#cdd6ff";
   const rows=fam.gens.map(gen=>`<div class="fam-row">`+gen.map(id=>{ const e=fam.ents[id];
     return `<div class="fam-node" data-fid="${esc(id)}"><div class="fn" style="color:${col(e)}">${esc(e.name)}</div>${e.known_as?`<div class="fh">« ${esc(e.known_as)} »</div>`:""}</div>`; }).join("")+`</div>`).join("");
-  host.innerHTML=`<svg class="fam-svg" id="famSvg"></svg><div class="fam-gens">${rows}</div>`;
+  host.innerHTML=`<div class="fam-zoom" id="famZoomWrap"><svg class="fam-svg" id="famSvg"></svg><div class="fam-gens">${rows}</div></div>`;
+  applyFamZoom();
   requestAnimationFrame(()=>drawFamLinks(fam)); }
-function drawFamLinks(fam){ const host=$("#famTree"), svg=$("#famSvg"); if(!host||!svg)return;
-  const hb=host.getBoundingClientRect(), pos={};
-  host.querySelectorAll(".fam-node").forEach(n=>{ const r=n.getBoundingClientRect(); pos[n.dataset.fid]={x:r.left-hb.left+host.scrollLeft+r.width/2, top:r.top-hb.top+host.scrollTop, bot:r.bottom-hb.top+host.scrollTop}; });
+let famZoom=1;
+function applyFamZoom(){ const w=$("#famZoomWrap"); if(w) w.style.transform="scale("+famZoom+")"; }
+function drawFamLinks(fam){ const wrap=$("#famZoomWrap"), svg=$("#famSvg"); if(!wrap||!svg)return;
+  const prevT=wrap.style.transform; wrap.style.transform="none";   // calcule les positions à l'échelle 1 (insensible au zoom)
+  const wb=wrap.getBoundingClientRect(), pos={};
+  wrap.querySelectorAll(".fam-node").forEach(n=>{ const r=n.getBoundingClientRect(); pos[n.dataset.fid]={x:r.left-wb.left+r.width/2, top:r.top-wb.top, bot:r.bottom-wb.top}; });
   let L="";
   Object.keys(fam.childrenOf||{}).forEach(pid=>{ const pp=pos[pid]; if(!pp)return; (fam.childrenOf[pid]||[]).forEach(cid=>{ const cp=pos[cid]; if(!cp)return; const my=(pp.bot+cp.top)/2;
     L+=`<path d="M${pp.x},${pp.bot} C${pp.x},${my} ${cp.x},${my} ${cp.x},${cp.top}" stroke="rgba(120,150,255,.42)" fill="none" stroke-width="1.5"/>`; }); });
   const seen=new Set();
   Object.keys(fam.spouses||{}).forEach(a=>(fam.spouses[a]||[]).forEach(b=>{ const k=[a,b].sort().join("|"); if(seen.has(k))return; seen.add(k); const pa=pos[a],pb=pos[b]; if(!pa||!pb)return;
     L+=`<line x1="${pa.x}" y1="${(pa.top+pa.bot)/2}" x2="${pb.x}" y2="${(pb.top+pb.bot)/2}" stroke="rgba(255,158,214,.5)" stroke-width="1.5" stroke-dasharray="4 3"/>`; }));
-  svg.innerHTML=L; svg.setAttribute("width",host.scrollWidth); svg.setAttribute("height",host.scrollHeight); }
+  svg.innerHTML=L; svg.setAttribute("width",wrap.scrollWidth); svg.setAttribute("height",wrap.scrollHeight);
+  wrap.style.transform=prevT; }   // remet le zoom courant
 function setMapMode(mode){ state.mapMode=mode; const tree=mode==="tree";
   const ft=$("#famTree"), cv2=$("#constellation"); if(ft)ft.style.display=tree?"block":"none"; if(cv2)cv2.style.display=tree?"none":"";
   const bt=$("#btnTree"); if(bt){ bt.classList.toggle("on",tree); bt.innerHTML=(tree?"✦ ":"🌳 ")+'<span>'+(tree?t("leg.constellation"):t("leg.tree"))+'</span>'; }
@@ -2954,6 +2965,14 @@ function setMapMode(mode){ state.mapMode=mode; const tree=mode==="tree";
   if(tree) renderFamilyTree(); else closeNode(); }
 $("#btnTree").onclick=()=>setMapMode(state.mapMode==="tree"?"graph":"tree");
 $("#famTree").addEventListener("click",e=>{ const n=e.target.closest("[data-fid]"); if(!n)return; const tn=(G.nodes||[]).find(x=>x.id===n.dataset.fid); if(tn) openNode(tn); });
+// Zoom de l'arbre généalogique : molette (PC) + pinch 2 doigts (mobile)
+(function(){ const ft=$("#famTree"); if(!ft)return;
+  ft.addEventListener("wheel",e=>{ e.preventDefault(); const f=e.deltaY<0?1.1:0.9; famZoom=Math.max(.4,Math.min(3,famZoom*f)); applyFamZoom(); },{passive:false});
+  let fp=null; const fd=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+  ft.addEventListener("touchstart",e=>{ if(e.touches.length===2){ fp={d:fd(e.touches),z:famZoom}; e.preventDefault(); } },{passive:false});
+  ft.addEventListener("touchmove",e=>{ if(fp&&e.touches.length===2){ const d=fd(e.touches); if(fp.d>0){ famZoom=Math.max(.4,Math.min(3,fp.z*d/fp.d)); applyFamZoom(); } e.preventDefault(); } },{passive:false});
+  ft.addEventListener("touchend",e=>{ if(e.touches.length<2) fp=null; });
+})();
 
 function syncVolUI(){ const s=$("#ttsVol"); if(!s)return; s.value=S.vol??100; $("#volPct").textContent=(S.vol??100)+"%"; }
 $("#ttsVol").oninput=e=>{ S.vol=+e.target.value; $("#volPct").textContent=S.vol+"%"; if(elAudio) elAudio.volume=S.vol/100; /* live sur le son EL en cours (Web Speech ne peut pas changer en cours → passage suivant) */ saveStore(); };
