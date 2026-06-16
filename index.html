@@ -208,6 +208,14 @@
   .listen-text.immersive{position:fixed;inset:0;z-index:300;max-height:none;margin:0;padding:42px 8vw 96px;gap:14px;overflow:auto;background:linear-gradient(180deg,#080a18,#0a0c20 60%,#080a18);font-size:18px;line-height:1.9}
   .listen-text.immersive .ntr{font-size:16.5px;line-height:1.85;padding:11px 15px}
   #immBar{position:fixed;bottom:0;left:0;right:0;z-index:301;display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:13px 20px;background:linear-gradient(0deg,rgba(8,10,26,.97),rgba(8,10,26,.7));border-top:1px solid var(--panel-brd);backdrop-filter:blur(8px)}
+  /* --- Mini-lecteur flottant (contrôles d'écoute persistants) --- */
+  #miniPlayer{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:55;display:flex;align-items:center;gap:8px;padding:7px 9px 7px 15px;background:rgba(14,16,38,.94);border:1px solid var(--panel-brd);border-radius:30px;box-shadow:0 12px 40px rgba(0,0,0,.55);backdrop-filter:blur(10px);max-width:94vw;animation:minirise .3s ease}
+  @keyframes minirise{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+  #miniPlayer .mp-ic{color:var(--cyan);font-size:15px;flex:0 0 auto}
+  #miniPlayer .mp-label{font-size:12.5px;color:var(--txt-dim);max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #miniPlayer .mp-btn{appearance:none;border:1px solid var(--panel-brd);background:rgba(0,0,0,.28);color:var(--txt);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:.15s;flex:0 0 auto}
+  #miniPlayer .mp-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+  #miniPlayer .mp-go{background:linear-gradient(135deg,rgba(70,224,255,.2),rgba(154,107,255,.2))}
   #btnFocus.lit,#immFocus.lit{color:#fff;background:linear-gradient(135deg,rgba(70,224,255,.3),rgba(154,107,255,.3));border-color:var(--cyan);animation:pulseLoad 1.4s ease-in-out infinite}
   .loading{color:var(--cyan)!important;font-weight:600;animation:pulseLoad 1.1s ease-in-out infinite}
   .loading::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:var(--cyan);vertical-align:middle;animation:pulseLoad 1.1s ease-in-out infinite}
@@ -330,7 +338,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.0.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.1.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -796,6 +804,14 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<!-- Mini-lecteur flottant : contrôles d'écoute accessibles depuis TOUS les onglets pendant une lecture -->
+<div id="miniPlayer" style="display:none">
+  <span class="mp-ic">♪</span>
+  <span class="mp-label" id="mpLabel">En lecture</span>
+  <button class="mp-btn" id="mpPause" title="Pause / Reprendre">⏸</button>
+  <button class="mp-btn" id="mpStop" title="Stop">■</button>
+  <button class="mp-btn mp-go" id="mpGo" title="Plein texte">⛶</button>
+</div>
 <!-- badge version bas-droite retiré (demande Quang 16/06) — version visible en haut près du logo -->
 
 <script id="DEMO_DATA" type="text/plain">I. A SCANDAL IN BOHEMIA
@@ -1880,7 +1896,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2106,6 +2122,7 @@ function show(tab){ state.tab=tab;
   if(tab==="listen"){ syncListenUI(); }
   if(typeof tuneAmbiance==="function") tuneAmbiance(); // fond d'ambiance : discret en lecture, plus présent ailleurs
   if(tab!=="read"){ setChromeHidden(false); } else { _lastScrollY=$("#readView").scrollTop||0; } // chrome auto-hide : actif en lecture seulement
+  if(typeof updateMiniPlayer==="function") updateMiniPlayer();
 }
 $("#tabs").addEventListener("click",e=>{ const b=e.target.closest(".tab"); if(b&&!b.disabled) show(b.dataset.view); });
 
@@ -3663,7 +3680,8 @@ function syncBudgetResetUI(){ const sel=$("#budgetResetMode"); if(!sel)return; c
   sel.innerHTML=`<option value="never">${FR?"Jamais (manuel)":"Never (manual)"}</option><option value="monthly">${FR?"Mensuelle":"Monthly"}</option><option value="days">${FR?"Tous les N jours":"Every N days"}</option>`;
   sel.value=S.budgetResetMode||"never"; const di=$("#budgetResetDays"); if(di){ di.value=S.budgetResetDays||30; di.style.display=(sel.value==="days")?"":"none"; } }
 function renderElCredits(){ const el=$("#elCredits"); if(el) el.innerHTML=""; } // coût désormais dans le bandeau header (#hdrCost) → plus de doublon au milieu de l'onglet Écoute
-function setElPlaying(on){ setPauseDisabled(!on); setPauseBtn(false); if(on) setFollow(true); updateFocusBtn(); }
+let _listenOn=false;
+function setElPlaying(on){ setPauseDisabled(!on); setPauseBtn(false); if(on) setFollow(true); updateFocusBtn(); _listenOn=on; if(typeof updateMiniPlayer==="function") updateMiniPlayer(); }
 let elCurStarts=null; // alignement caractères de l'audio EL courant (pour le seek #12)
 function stopEleven(){ if(elAudio){ elAudio.pause(); elAudio.currentTime=0; elAudio.ontimeupdate=null; } }
 function elPauseToggle(){ if(!elAudio)return; if(elAudio.paused){ elAudio.play().catch(()=>{}); stat("#listenStatus","▶ "+t("el.playing")); setPauseBtn(false); } else { elAudio.pause(); stat("#listenStatus","⏸ "+t("el.paused")); setPauseBtn(true); } updatePlayBtn(); } // setPauseBtn = #listenPause ET #immPause ; updatePlayBtn rafraîchit le bouton lecture des 2 barres (#R1)
@@ -3952,8 +3970,8 @@ async function listenPlay(){ if(listenBusy)return; if(!state.analysis){ toast(t(
 function listenStop(){ narrPlaying=false; elMultiStop=true; if(window.speechSynthesis)speechSynthesis.cancel(); stopEleven(); setElPlaying(false);
   const pb=$("#listenPause"); if(pb){pb.disabled=true;} setPauseBtn(false);
   $$("#listenText .kw.on").forEach(s=>s.classList.remove("on")); $$("#listenText .ntr.active").forEach(s=>s.classList.remove("active")); updateFocusBtn(); updateCacheBadge(); }
-function listenPause(){ if(isPrem()){ elPauseToggle(); return; }
-  if(!window.speechSynthesis)return; if(speechSynthesis.paused){ speechSynthesis.resume(); setPauseBtn(false); } else if(speechSynthesis.speaking){ speechSynthesis.pause(); setPauseBtn(true); } }
+function listenPause(){ if(isPrem()){ elPauseToggle(); setTimeout(()=>{ if(typeof updateMiniPlayer==="function") updateMiniPlayer(); },60); return; }
+  if(!window.speechSynthesis)return; if(speechSynthesis.paused){ speechSynthesis.resume(); setPauseBtn(false); } else if(speechSynthesis.speaking){ speechSynthesis.pause(); setPauseBtn(true); } if(typeof updateMiniPlayer==="function") updateMiniPlayer(); }
 
 // #9 Estimation conso EL AVANT de générer (≈ caractères/crédits de la scène courante)
 // Le coût estimé est désormais porté par le badge (#cacheBadge, pulsant). Ici on ne montre QUE l'alerte crédits insuffisants.
@@ -4220,11 +4238,24 @@ function setImmersive(on){ const txt=$("#listenText"), bar=$("#immBar"); if(!txt
   // #R1-bis : miroir EXACT de la barre normale (état activé + libellé). Avant, #immPause était désactivé quand l'audio
   // n'était pas EN COURS → mettre en pause PUIS passer en plein écran rendait « Reprendre » non cliquable.
   const ip=$("#immPause"), lp=$("#listenPause"); if(ip&&lp){ ip.disabled=lp.disabled; ip.textContent=lp.textContent; }
-  if(typeof updatePlayBtn==="function") updatePlayBtn(); updateFocusBtn(); }
+  if(typeof updatePlayBtn==="function") updatePlayBtn(); updateFocusBtn(); if(typeof updateMiniPlayer==="function") updateMiniPlayer(); }
 $("#btnImmersive").onclick=()=>setImmersive(!$("#listenText").classList.contains("immersive"));
 $("#immClose").onclick=()=>setImmersive(false);
 $("#immPlay").onclick=listenPlay; $("#immPause").onclick=listenPause; $("#immStop").onclick=listenStop;
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&$("#listenText").classList.contains("immersive")) setImmersive(false); });
+
+// ════ Mini-lecteur flottant : contrôles d'écoute persistants (visible sur tous les onglets pendant une lecture) ════
+function updateMiniPlayer(){ const mp=$("#miniPlayer"); if(!mp)return;
+  const lt=$("#listenText"), immersive=lt&&lt.classList.contains("immersive");
+  const visible=_listenOn && !immersive;                          // masqué en plein texte (qui a déjà sa barre) et quand rien ne joue
+  mp.style.display=visible?"flex":"none";
+  if(visible){ const playing=isPlaying(), FR=_nfr(); const pb=$("#mpPause");
+    if(pb){ pb.textContent=playing?"⏸":"▶"; pb.title=playing?(FR?"Pause":"Pause"):(FR?"Reprendre":"Resume"); }
+    const lbl=$("#mpLabel"); if(lbl){ const src=(typeof sourceText==="function")?sourceText():{}; const cn=(typeof curChapterNum==="function")?curChapterNum():null;
+      const where=cn?("Ch. "+cn):(src.title||""); lbl.textContent=(playing?(FR?"En lecture":"Playing"):(FR?"En pause":"Paused"))+(where?(" · "+where):""); } } }
+if($("#mpPause")) $("#mpPause").onclick=()=>{ listenPause(); setTimeout(updateMiniPlayer,80); };
+if($("#mpStop"))  $("#mpStop").onclick=()=>{ listenStop(); };
+if($("#mpGo"))    $("#mpGo").onclick=()=>{ show("listen"); setTimeout(()=>{ if($("#listenText")) setImmersive(true); },90); };
 // ── Suivi (focus) pendant la lecture : scroll libre + bouton "revenir au focus" ──
 let listenFollow=true, listenAutoScroll=false;
 function isPlaying(){ return narrPlaying || (elAudio && !elAudio.paused); }
