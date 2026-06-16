@@ -278,6 +278,13 @@
   .lg-btn{appearance:none;border:1px solid var(--panel-brd);background:rgba(0,0,0,.3);color:var(--txt-dim);font:inherit;font-size:12px;font-weight:600;padding:5px 11px;border-radius:9px;cursor:pointer;transition:.2s}
   .lg-btn:hover{color:var(--txt);border-color:rgba(120,150,255,.5)}
   .lg-btn.on{background:linear-gradient(135deg,rgba(255,212,121,.25),rgba(154,107,255,.22));color:#fff;border-color:rgba(255,212,121,.4)}
+  /* Lot B — carte « qui parle » de la Carte vivante (collée au mini-lecteur) */
+  #nowSpeaking{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--mini-space,70px) + 6px);z-index:38;display:none;align-items:center;gap:9px;max-width:min(440px,92vw);padding:8px 14px;background:linear-gradient(180deg,rgba(20,24,52,.97),rgba(13,16,40,.95));border:1px solid rgba(120,150,255,.35);border-radius:13px;box-shadow:0 10px 30px rgba(0,0,0,.5);cursor:pointer;animation:nbslide .25s ease}
+  #nowSpeaking .ns-dot{width:13px;height:13px;border-radius:50%;flex:0 0 auto}
+  #nowSpeaking .ns-txt{min-width:0;font-size:12.5px;line-height:1.35;color:var(--txt);overflow:hidden}
+  #nowSpeaking .ns-txt b{color:#eafff5}
+  #nowSpeaking .ns-note{color:var(--txt-dim)}
+  #nowSpeaking .ns-rel{color:var(--cyan);font-size:11px}
   .dot{width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#fff,currentColor 62%);box-shadow:0 0 11px currentColor,0 0 4px currentColor}
   .node-panel{position:absolute;right:0;top:0;height:100%;width:min(340px,82vw);z-index:6;transform:translateX(100%);transition:.35s cubic-bezier(.4,0,.2,1);
     background:linear-gradient(180deg,#0d1030,#090b22);border-left:1px solid var(--panel-brd);box-shadow:-20px 0 60px rgba(0,0,0,.5);display:flex;flex-direction:column}
@@ -394,7 +401,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.8.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.9.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -519,6 +526,7 @@
         <button class="lg-btn" id="btnMainOnly">★ <span data-i18n="leg.mainOnly">Principaux</span></button>
         <button class="lg-btn" id="btnTree">🌳 <span data-i18n="leg.tree">Arbre</span></button>
         <button class="lg-btn" id="btnAddEntity" title="Ajouter une entité" data-i18n-title="ent.addTitle"><span data-i18n="ent.add">＋ Ajouter</span></button>
+        <button class="lg-btn" id="btnLiveMap" title="Carte vivante pendant la lecture" data-i18n-title="live.title"><span data-i18n="live.label">✨ Vivant</span></button>
         <span class="lg" style="color:var(--txt-faint)" id="legHint" data-i18n="leg.hint">Glissez = pivoter · molette = zoom · clic = fiche</span>
       </div>
       <aside class="node-panel" id="nodePanel">
@@ -877,6 +885,7 @@
 
 <div class="toast" id="toast"></div>
 <!-- Mini-lecteur flottant : contrôles d'écoute accessibles depuis TOUS les onglets pendant une lecture -->
+<div id="nowSpeaking" title="Qui parle — appuyez pour la fiche"></div>
 <div id="miniPlayer" class="compact" style="display:none">
   <div class="mp-line1">
     <button class="mp-btn mp-sm mp-navonly" id="mpPrev" title="Chapitre précédent">◂</button>
@@ -1981,7 +1990,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.8.0";
+const VERSION = "1.9.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2021,6 +2030,7 @@ const I18N = {
   "leg.person":"Personnage","leg.place":"Lieu","leg.house":"Maison/Groupe","leg.mainOnly":"Principaux","leg.hint":"Glissez = pivoter · molette = zoom · clic = fiche","leg.tree":"Arbre","leg.constellation":"Constellation","leg.treeHint":"Arbre généalogique (liens familiaux révélés) · clic = fiche","fam.empty":"Aucun lien familial révélé à cette position de lecture.",
   "np.links":"Liens connus","np.noLink":"Aucun lien révélé à cette position.","np.goto":"Voir cette fiche","narr.colorSpeakers":"🎨 Une couleur par personnage",
   "ent.add":"＋ Ajouter","ent.addTitle":"Ajouter une entité (personnage, lieu, groupe)","ent.edit":"Modifier cette entité",
+  "live.label":"✨ Vivant","live.title":"Carte vivante : les personnages s'allument quand ils parlent pendant l'écoute",
   "listen.title":"Mode écoute","listen.sub":"Projetez-vous dans l'histoire sans lire vous-même.","listen.avail":"Disponible",
   "listen.whatLabel":"🎧 Quoi écouter","listen.whatStory":"Histoire","listen.whatSummary":"Résumé","listen.sumGlobal":"Résumé global","listen.langLabel":"🌐 Langue d'écoute","listen.langOrig":"Originale","listen.engineLabel":"🔊 Voix","listen.engBrowser":"Local","listen.engEleven":"Premium","listen.play":"▶︎ Écouter","listen.translating":"🌐 Traduction en cours…","listen.willTranslate":"Sera traduit en {l} au lancement.","listen.transOn":"🌐 traduit à la volée","listen.empty":"Choisissez quoi écouter ci-dessus, puis ▶︎ Écouter.","listen.noSummary":"Aucun résumé disponible à ce stade.","listen.cachedAudio":"audio en cache · gratuit","listen.cachedSeg":"voix déjà attribuées · instantané","listen.immersive":"Plein texte","listen.immReduce":"Réduire","listen.instant":"navigateur · instantané & gratuit","listen.toGen":"voix à attribuer (1 analyse)","listen.focus":"Revenir au focus","listen.advTitle":"⚙ Réglages voix","el.speed":"⏩ Vitesse","listen.gen":"✨ Générer la voix","listen.restart":"↻ Recommencer",
   "listen.ttsTitle":"Lecture vocale du résumé","listen.ttsDesc":"Synthèse vocale du navigateur (gratuite, immédiate).","listen.speak":"▶︎ Lire le résumé courant","listen.stop":"■ Stop","listen.volume":"🔊 Volume","el.voice":"🗣️ Voix premium","el.synth":"Synthèse de {n} caractères…","el.trunc":"(scène tronquée à 2500 caractères)","el.playing":"Lecture en cours…","el.playingCached":"Lecture (depuis le cache, gratuit)","el.paused":"En pause","el.done":"Terminé","el.err":"Échec de la synthèse premium.","el.noCredits":"Crédits insuffisants ({r} restants ce mois).",
@@ -2073,6 +2083,7 @@ const I18N = {
   "leg.person":"Character","leg.place":"Place","leg.house":"House/Group","leg.mainOnly":"Main only","leg.hint":"Drag = rotate · wheel = zoom · click = card","leg.tree":"Tree","leg.constellation":"Constellation","leg.treeHint":"Family tree (revealed family links) · click = card","fam.empty":"No family link revealed at this reading position.",
   "np.links":"Known links","np.noLink":"No link revealed at this position.","np.goto":"Open this card","narr.colorSpeakers":"🎨 One color per character",
   "ent.add":"＋ Add","ent.addTitle":"Add an entity (character, place, group)","ent.edit":"Edit this entity",
+  "live.label":"✨ Live","live.title":"Live map: characters light up as they speak during listening",
   "listen.title":"Listen mode","listen.sub":"Immerse yourself in the story without reading it yourself.","listen.avail":"Available",
   "listen.whatLabel":"🎧 What to listen to","listen.whatStory":"Story","listen.whatSummary":"Summary","listen.sumGlobal":"Global summary","listen.langLabel":"🌐 Listening language","listen.langOrig":"Original","listen.engineLabel":"🔊 Voice","listen.engBrowser":"Local","listen.engEleven":"Premium","listen.play":"▶︎ Listen","listen.translating":"🌐 Translating…","listen.willTranslate":"Will be translated to {l} on play.","listen.transOn":"🌐 translated on the fly","listen.empty":"Choose what to listen to above, then ▶︎ Listen.","listen.noSummary":"No summary available yet.","listen.cachedAudio":"audio cached · free","listen.cachedSeg":"voices already assigned · instant","listen.immersive":"Full text","listen.immReduce":"Reduce","listen.instant":"browser · instant & free","listen.toGen":"voices to assign (1 analysis)","listen.focus":"Back to focus","listen.advTitle":"⚙ Voice settings","el.speed":"⏩ Speed","listen.gen":"✨ Generate voice","listen.restart":"↻ Restart",
   "listen.ttsTitle":"Read the summary aloud","listen.ttsDesc":"Browser speech synthesis (free, instant).","listen.speak":"▶︎ Read current summary","listen.stop":"■ Stop","listen.volume":"🔊 Volume","el.voice":"🗣️ Premium voice","el.synth":"Synthesizing {n} characters…","el.trunc":"(scene truncated to 2500 characters)","el.playing":"Playing…","el.playingCached":"Playing (from cache, free)","el.paused":"Paused","el.done":"Done","el.err":"Premium synthesis failed.","el.noCredits":"Not enough credits ({r} left this month).",
@@ -3062,18 +3073,24 @@ function draw(){ if(state.tab==="map"){ updateMapRevealHint(); physics(); const 
     const P=new Map(); for(const n of G.nodes){ if(visN(n)) P.set(n,project(n)); }
     let cogX=0,cogY=0,cnt=0; for(const pr of P.values()){ cogX+=pr.x; cogY+=pr.y; cnt++; } if(cnt){ cogX/=cnt; cogY/=cnt; } lastCog.x=cogX; lastCog.y=cogY;  // recentrage auto sur le centre de masse
     ctx.save(); ctx.translate(W/2+pan.x*dpr,H/2+pan.y*dpr); ctx.scale(Z,Z); ctx.translate(-cogX,-cogY);
-    for(const e of G.edges){ if(!visE(e))continue; const pa=P.get(e.a),pb=P.get(e.b); if(!pa||!pb)continue; const al=.13+.10*Math.sin(Date.now()/700+e.a.x);
+    const liveOn=(S.liveMap!==false)&&(typeof isPlaying==="function")&&isPlaying()&&!!state._sceneLit; // Carte vivante : modulation lumineuse pendant l'audio
+    for(const e of G.edges){ if(!visE(e))continue; const pa=P.get(e.a),pb=P.get(e.b); if(!pa||!pb)continue; let al=.13+.10*Math.sin(Date.now()/700+e.a.x), lw=.9, exch=false;
+      if(liveOn){ const aIn=state._sceneLit.has(e.a.id), bIn=state._sceneLit.has(e.b.id);
+        exch=!!(state._speakingId&&state._prevSpkId&&((e.a.id===state._speakingId&&e.b.id===state._prevSpkId)||(e.a.id===state._prevSpkId&&e.b.id===state._speakingId)));
+        if(exch){ al=.5+.3*Math.abs(Math.sin(Date.now()/300)); lw=2.4; } else if(!(aIn&&bIn)){ al*=.18; } }
       const g=ctx.createLinearGradient(pa.x,pa.y,pb.x,pb.y); g.addColorStop(0,TYPE_COL[e.a.type]||"#46e0ff"); g.addColorStop(1,TYPE_COL[e.b.type]||"#9a6bff");
-      ctx.strokeStyle=g;ctx.globalAlpha=al;ctx.lineWidth=.9;ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);ctx.stroke();
-      if(e.a.main&&e.b.main){ ctx.globalAlpha=Math.min(.45,al+.22);ctx.fillStyle="#9aa3d4";ctx.font="9px Segoe UI";ctx.textAlign="center";ctx.fillText(e.type||"",(pa.x+pb.x)/2,(pa.y+pb.y)/2-3);} }
+      ctx.strokeStyle=g;ctx.globalAlpha=al;ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);ctx.stroke();
+      if((e.a.main&&e.b.main)||exch){ ctx.globalAlpha=Math.min(.75,al+.22);ctx.fillStyle=exch?"#cdd6ff":"#9aa3d4";ctx.font=(exch?"bold 10px":"9px")+" Segoe UI";ctx.textAlign="center";ctx.fillText(e.type||"",(pa.x+pb.x)/2,(pa.y+pb.y)/2-3);} }
     ctx.globalAlpha=1;
     const order=[...P.entries()].sort((a,b)=>a[1].depth-b[1].depth);
     for(const [n,pr] of order){ const col=TYPE_COL[n.type]||"#46e0ff",sel=state.selected===n,tw=.85+.15*Math.sin(Date.now()/500+n.x);
-      const base=n.main?13:6.5, R=base*n.ignite*tw*pr.sc*(sel?1.25:1), da=Math.max(.3,Math.min(1,pr.sc*0.95));
-      ctx.shadowColor=col;ctx.shadowBlur=(sel?34:16)*n.ignite*pr.sc;
+      const _spk=liveOn&&n.id===state._speakingId, _inSc=liveOn&&state._sceneLit.has(n.id), _fade=liveOn&&!_inSc;
+      const lb=_spk?(1.35+.12*Math.abs(Math.sin(Date.now()/300))):1;
+      const base=n.main?13:6.5, R=base*n.ignite*tw*pr.sc*(sel?1.25:1)*lb, da=Math.max(.3,Math.min(1,pr.sc*0.95))*(_fade?.24:1);
+      ctx.shadowColor=col;ctx.shadowBlur=(sel?34:16)*n.ignite*pr.sc*(_spk?1.9:1);
       const g=ctx.createRadialGradient(pr.x,pr.y,0,pr.x,pr.y,R*2.2); g.addColorStop(0,"#fff");g.addColorStop(.35,col);g.addColorStop(1,"rgba(10,12,40,0)");
       ctx.globalAlpha=da; ctx.fillStyle=g;ctx.beginPath();ctx.arc(pr.x,pr.y,R*2.2,0,7);ctx.fill();ctx.shadowBlur=0;
-      if(n.main||sel||cam.z>1.7){ ctx.globalAlpha=n.ignite*da; ctx.fillStyle="#e9ecff";ctx.font=(n.main?"bold "+13:11)+"px Segoe UI";ctx.textAlign="center";ctx.fillText(n.name||n.id,pr.x,pr.y+R*2.2+12); } }
+      if(n.main||sel||cam.z>1.7||_spk||_inSc){ ctx.globalAlpha=n.ignite*da*(_fade?.6:1); ctx.fillStyle=_spk?"#fff":"#e9ecff";ctx.font=((n.main||_spk)?"bold 13":"11")+"px Segoe UI";ctx.textAlign="center";ctx.fillText(n.name||n.id,pr.x,pr.y+R*2.2+12); } }
     ctx.globalAlpha=1; ctx.restore();
   } requestAnimationFrame(draw); }
 requestAnimationFrame(draw);
@@ -3179,6 +3196,45 @@ function addEntityStart(){ const FR=_entFR(); if(!state.analysis){ toast(FR?"Ana
   $("#nodePanel").classList.add("show"); const pb=$("#nodePanel").querySelector(".pb"); if(pb)pb.scrollTop=0; setTimeout(()=>{ const f=$("#npfName"); if(f)f.focus(); },60); }
 if($("#npEdit")) $("#npEdit").onclick=enterNodeEdit;
 if($("#btnAddEntity")) $("#btnAddEntity").onclick=addEntityStart;
+
+/* ── Lot B — « Carte vivante » pendant la lecture audio (Phase 1 : L2 accumulation progressive, audio-first, carte collée au mini-lecteur) ── */
+function escRe(s){ return (s||"").replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
+// résolveur locuteur → entité (réutilise la logique de speakerGender) ; null si narrateur / introuvable
+function speakerEntity(sp){ const a=state.analysis; if(!a||!a.entities||isNarrator(sp)) return null; const ns=norm(sp); if(!ns) return null;
+  let e=a.entities.find(x=>norm(x.name)===ns);
+  if(!e) e=a.entities.find(x=>{const xn=norm(x.name); return xn&&xn.length>2&&(ns.indexOf(xn)>=0||xn.indexOf(ns)>=0);});
+  if(!e) e=a.entities.find(x=>(x.known_as||"").split(/[,;]/).some(k=>{k=norm(k); return k&&k.length>2&&(k===ns||ns.indexOf(k)>=0);}));
+  return e||null; }
+// entités révélées CITÉES dans un texte (mot entier, ≥3 lettres) — « casting de scène »
+function scanMentions(txt){ const a=state.analysis, out=[]; if(!a||!txt) return out; const low=" "+txt.toLowerCase()+" ";
+  (a.entities||[]).forEach(e=>{ if((e.reveal_pct||0)>state.readPct) return; const names=[e.name].concat((e.known_as||"").split(/[,;]/));
+    for(const nm0 of names){ const nm=(nm0||"").trim(); if(nm.length<3) continue;
+      try{ if(new RegExp("(^|[^\\p{L}])"+escRe(nm.toLowerCase())+"([^\\p{L}]|$)","u").test(low)){ out.push(e.id); break; } }
+      catch(_){ if(low.indexOf(" "+nm.toLowerCase()+" ")>=0){ out.push(e.id); break; } } } });
+  return out; }
+function clearScene(){ state._sceneLit=null; state._speakingId=null; state._prevSpkId=null; updateNowSpeaking(); }
+// appelé quand une réplique devient ACTIVE (hooks navigateur + premium) → accumulation anti-spoiler
+function onSpeakingTurn(speaker,idx){ if(!state.analysis) return; if(!state._sceneLit) state._sceneLit=new Set();
+  const e=speakerEntity(speaker); const eid=(e&&(e.reveal_pct||0)<=state.readPct)?e.id:null;       // anti-spoiler
+  if(eid && state._speakingId && state._speakingId!==eid) state._prevSpkId=state._speakingId;        // partenaire d'échange = locuteur précédent distinct
+  state._speakingId=eid; if(eid) state._sceneLit.add(eid);
+  try{ const txt=(state.narrTurns&&state.narrTurns[idx]&&state.narrTurns[idx].text)||""; scanMentions(txt).forEach(id=>state._sceneLit.add(id)); }catch(_){}
+  updateNowSpeaking(); }
+function updateNowSpeaking(){ const el=$("#nowSpeaking"); if(!el) return;
+  const on=(S.liveMap!==false)&&(typeof isPlaying==="function")&&isPlaying()&&state._speakingId;
+  const e=on?entById(state._speakingId):null; if(!e){ el.style.display="none"; return; }
+  const a=state.analysis, col=TYPE_COL[e.type||"person"]||"#46e0ff";
+  const idName=id=>{const x=(a.entities||[]).find(y=>y.id===id);return x?(x.name||x.id):id;};
+  const rels=(a.relations||[]).filter(r=>(r.from===e.id||r.to===e.id)&&(r.reveal_pct||0)<=state.readPct).slice(0,2)
+    .map(r=>(r.type||"")+" "+idName(r.from===e.id?r.to:r.from));
+  const note=(e.note||"").trim();
+  el.innerHTML=`<span class="ns-dot" style="background:radial-gradient(circle at 38% 32%,#fff,${col} 62%);box-shadow:0 0 8px ${col}"></span>`
+    +`<span class="ns-txt"><b>🗣 ${esc(e.name||e.id)}</b>`+(note?` <span class="ns-note">— ${esc(note.length>72?note.slice(0,72)+"…":note)}</span>`:"")
+    +(rels.length?`<br><span class="ns-rel">${esc(rels.join(" · "))}</span>`:"")+`</span>`;
+  el.style.display="flex"; }
+if($("#nowSpeaking")) $("#nowSpeaking").onclick=()=>{ if(!state._speakingId) return; const n=(G.nodes||[]).find(x=>x.id===state._speakingId); if(typeof show==="function") show("map"); if(n) openNode(n); };
+function _syncLiveBtn(){ const b=$("#btnLiveMap"); if(b) b.classList.toggle("on", S.liveMap!==false); }
+if($("#btnLiveMap")){ _syncLiveBtn(); $("#btnLiveMap").onclick=()=>{ S.liveMap=(S.liveMap===false); saveStore(); _syncLiveBtn(); updateNowSpeaking(); const FR=(S.uiLang||"fr")!=="en"; toast((S.liveMap!==false)?(FR?"Carte vivante activée ✨":"Live map on ✨"):(FR?"Carte vivante désactivée":"Live map off")); }; }
 
 /* #2 — Vue ARBRE GÉNÉALOGIQUE (toggle constellation↔arbre). Orientation validée sur GoT :
    le `type` décrit le rôle de `from` envers `to` → père/mère: from=parent, fils/fille: from=enfant ; mari/femme: horizontal. */
@@ -3687,12 +3743,12 @@ async function segmentScene(text,silent){ const slice=text.slice(0,SEG_MAX_CHARS
 function setPauseBtn(paused){ const lbl=paused?t("narr.resume"):t("narr.pause"); ["#listenPause","#immPause"].forEach(s=>{const b=$(s); if(b)b.textContent=lbl;}); }
 function setPauseDisabled(d){ ["#listenPause","#immPause"].forEach(s=>{const b=$(s); if(b)b.disabled=d;}); }
 let playGen=0;
-function playTurns(turns,cast,startIdx){ const gen=++playGen; state._turns=turns; state._cast=cast; narrIdx=Math.max(0,Math.min(startIdx||0,turns.length-1)); narrPlaying=true; setFollow(true); const pb=$("#listenPause"); if(pb){pb.disabled=false;} setPauseDisabled(false); setPauseBtn(false);
+function playTurns(turns,cast,startIdx){ const gen=++playGen; state._turns=turns; state._cast=cast; narrIdx=Math.max(0,Math.min(startIdx||0,turns.length-1)); narrPlaying=true; if(!startIdx){ state._sceneLit=new Set(); state._speakingId=null; state._prevSpkId=null; } setFollow(true); const pb=$("#listenPause"); if(pb){pb.disabled=false;} setPauseDisabled(false); setPauseBtn(false);
   const next=()=>{ if(gen!==playGen) return; if(!narrPlaying||narrIdx>=turns.length){ const done=narrIdx>=turns.length; narrPlaying=false; stat("#listenStatus",t("narr.done")); setPauseDisabled(true); setPauseBtn(false); updateFocusBtn(); if(done) clearResume(); updateCacheBadge(); if(done) autoAdvanceChapter(); return; }
     state._playPos={turn:narrIdx,total:turns.length}; saveResume(narrIdx, turns.length); // avancement live AVANT le signet (saveResume rafraîchit le mini → _playPos doit déjà être posé, sinon 1er tour non affiché)
     const tn=turns[narrIdx], c=cast[tn.speaker||"narrateur"]||cast["narrateur"]||{};
     const u=new SpeechSynthesisUtterance(tn.text); if(c.voice)u.voice=c.voice; u.pitch=c.pitch||1; u.rate=(S.narrRate||100)/100; u.volume=(S.vol??100)/100;
-    const i=narrIdx, cur=$("#ntr"+i); if(cur){ cur.classList.add("active"); maybeScroll(cur); }
+    const i=narrIdx, cur=$("#ntr"+i); if(cur){ cur.classList.add("active"); maybeScroll(cur); } onSpeakingTurn(tn.speaker,i);
     u.onboundary=e=>{ if(e&&e.charIndex!=null) highlightWord(i, e.charIndex); };
     const clean=()=>{ if(cur){ cur.classList.remove("active"); cur.querySelectorAll(".kw.on").forEach(s=>s.classList.remove("on")); } };
     u.onend=()=>{ clean(); narrIdx++; next(); }; u.onerror=()=>{ clean(); narrIdx++; next(); };
@@ -4042,6 +4098,7 @@ let elGenCtx=null; // contexte de génération courant → étiquette le cache a
 function genMeta(o){ const src=sourceText(); return Object.assign({ what:(S.listenWhat||"story"), chapTitle:(src.title||""), chapNum:curChapterNum(), tone:(S.elTone||"neutre"), model:elModel(), ts:Date.now() }, o||{}); }
 async function playElevenMulti(turns,startIdx){ const sec=getSecret(); if(!sec){ requireKey(); return; }
   if(turns){ // nouvelle lecture : préparer tours + cast ; sinon réutiliser (cas seek)
+    state._sceneLit=new Set(); state._speakingId=null; state._prevSpkId=null; // Carte vivante : nouvelle scène
     turns=turns.map(tn=>({speaker:tn.speaker||"narrateur", text:(tn.text||"").replace(/\s+/g," ").trim().slice(0,EL_MAX_CHARS)})).filter(tn=>tn.text);
     if(!turns.length){ stat("#listenStatus",t("narr.segErr")); return; }
     const speakers=[...new Set(turns.map(t=>t.speaker))]; elMultiCast=elCast(speakers); elMultiTurns=turns;
@@ -4125,7 +4182,7 @@ async function elPlayFrom(i){ const gen=++elGen; const turns=elMultiTurns, cast=
   if(elMultiStop||gen!==elGen) return; // un nouveau clic/seek a pris la main → cette synthèse dépassée n'enchaîne pas
   stat("#listenStatus","▶ "+t("el.playing")+" ("+(i+1)+"/"+turns.length+")");
   if(elAudio) elAudio.pause(); elAudio=new Audio(res.url); elAudio.volume=vol(); elAudio.playbackRate=elSpeed();
-  const cur=$("#ntr"+i); if(cur){ cur.classList.add("active"); maybeScroll(cur); }
+  const cur=$("#ntr"+i); if(cur){ cur.classList.add("active"); maybeScroll(cur); } onSpeakingTurn(tn.speaker,i);
   const starts=res.starts; elAudio.ontimeupdate=()=>{ if(!starts)return; const ct=elAudio.currentTime||0; let ci=0; for(let k=0;k<starts.length;k++){ if(starts[k]<=ct) ci=k; else break; } highlightWord(i,ci); };
   elAudio.onended=()=>{ if(cur){ cur.classList.remove("active"); cur.querySelectorAll(".kw.on").forEach(s=>s.classList.remove("on")); } elPlayFrom(i+1); };
   elAudio.onerror=()=>{ if(cur)cur.classList.remove("active"); elPlayFrom(i+1); };
@@ -4189,7 +4246,7 @@ async function listenPlay(){ if(listenBusy)return; if(!state.analysis){ toast(t(
 }
 function listenStop(){ narrPlaying=false; elMultiStop=true; if(window.speechSynthesis)speechSynthesis.cancel(); stopEleven(); setElPlaying(false);
   const pb=$("#listenPause"); if(pb){pb.disabled=true;} setPauseBtn(false);
-  $$("#listenText .kw.on").forEach(s=>s.classList.remove("on")); $$("#listenText .ntr.active").forEach(s=>s.classList.remove("active")); updateFocusBtn(); updateCacheBadge(); }
+  $$("#listenText .kw.on").forEach(s=>s.classList.remove("on")); $$("#listenText .ntr.active").forEach(s=>s.classList.remove("active")); updateFocusBtn(); updateCacheBadge(); clearScene(); }
 function listenPause(){ if(isPrem()){ elPauseToggle(); setTimeout(()=>{ if(typeof updateMiniPlayer==="function") updateMiniPlayer(); },60); return; }
   if(!window.speechSynthesis)return; if(speechSynthesis.paused){ speechSynthesis.resume(); setPauseBtn(false); } else if(speechSynthesis.speaking){ speechSynthesis.pause(); setPauseBtn(true); } if(typeof updateMiniPlayer==="function") updateMiniPlayer(); }
 
