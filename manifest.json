@@ -1,0 +1,22 @@
+{
+  "name": "StoryVoice — Compagnon de lecture intelligent",
+  "short_name": "StoryVoice",
+  "description": "Compagnon de lecture intelligent : résumés multi-niveaux, carte vivante des personnages, narration multi-voix par personnage et Q&A anti-spoiler.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "id": "/storyvoice/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#05060f",
+  "theme_color": "#05060f",
+  "categories": ["books", "education", "entertainment"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

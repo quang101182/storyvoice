@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#261a5c"/>
+      <stop offset="1" stop-color="#070916"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- livre ouvert -->
+  <path d="M32 22 L16 26 L16 46 L32 43 Z" fill="#e9ecff"/>
+  <path d="M32 22 L48 26 L48 46 L32 43 Z" fill="#c8cef5"/>
+  <line x1="32" y1="22" x2="32" y2="43" stroke="#7882c8" stroke-width="1.4"/>
+  <!-- ondes sonores -->
+  <g fill="none" stroke-width="2.2" stroke-linecap="round">
+    <path d="M45 19 A7 7 0 0 1 45 29" stroke="#46e0ff"/>
+    <path d="M48 16 A11 11 0 0 1 48 32" stroke="#ffd479"/>
+  </g>
+</svg>
