@@ -253,7 +253,7 @@
   .rel-go{color:var(--cyan);cursor:pointer;border-bottom:1px dotted transparent;transition:.15s}
   .rel-go:hover{border-bottom-color:var(--cyan);text-shadow:0 0 8px rgba(70,224,255,.5)}
   .fam-tree{position:absolute;inset:0;overflow:auto;padding:34px 24px 70px;z-index:3}
-  .fam-zoom{position:relative;transform-origin:0 0;width:max-content;min-width:100%}
+  .fam-zoom{position:relative;transform-origin:50% 0;width:max-content;min-width:100%}
   .fam-gens{position:relative;display:flex;flex-direction:column;gap:56px;min-width:max-content;margin:0 auto;z-index:2}
   .fam-row{display:flex;gap:24px;justify-content:center;position:relative}
   .fam-node{background:var(--panel);border:1px solid var(--panel-brd);border-radius:12px;padding:9px 14px;min-width:88px;text-align:center;cursor:pointer;backdrop-filter:blur(6px);transition:.15s}
@@ -316,7 +316,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v0.95.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v0.96.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -1862,7 +1862,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "0.95.0";
+const VERSION = "0.96.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2835,6 +2835,7 @@ $("#readChap").addEventListener("change",e=>{ const v=e.target.value;
 
 const cv=$("#constellation"), ctx=cv.getContext("2d");
 let G={nodes:[],edges:[]}, cam={z:1}, rot={x:-0.32,y:0.5}, dpr=Math.min(2,devicePixelRatio||1);
+let pan={x:0,y:0}, lastCog={x:0,y:0};   // pan = déplacement utilisateur (2 doigts) ; lastCog = centre de masse projeté (recentrage auto)
 const TYPE_COL={person:"#46e0ff",place:"#5dffb0",house:"#ffd479"};
 const FOV=900;
 function resizeMap(){ const r=cv.getBoundingClientRect(); cv.width=r.width*dpr; cv.height=r.height*dpr; }
@@ -2843,7 +2844,7 @@ function buildGraph(){ state.askHistory=[]; state.readerIdx=0; state.mapMode="gr
   const hasImp=a.entities.some(e=>e.importance);
   G.nodes=a.entities.map(e=>{const main=hasImp?((e.importance||"").toLowerCase().indexOf("main")===0||(e.importance||"").toLowerCase().indexOf("princ")===0):true;
     const n={...e,main,x:(Math.random()-.5)*440,y:(Math.random()-.5)*440,z:(Math.random()-.5)*440,vx:0,vy:0,vz:0,ignite:0};byId[e.id]=n;return n;});
-  G.edges=(a.relations||[]).filter(r=>byId[r.from]&&byId[r.to]).map(r=>({...r,a:byId[r.from],b:byId[r.to]})); cam={z:1}; rot={x:-0.32,y:0.5};
+  G.edges=(a.relations||[]).filter(r=>byId[r.from]&&byId[r.to]).map(r=>({...r,a:byId[r.from],b:byId[r.to]})); cam={z:1}; rot={x:-0.32,y:0.5}; pan={x:0,y:0};
 }
 function visN(n){ if(n.reveal_pct>state.readPct) return false; if(state.mainOnly&&!n.main) return false; return true; }
 function visE(e){return e.reveal_pct<=state.readPct&&visN(e.a)&&visN(e.b);}
@@ -2866,8 +2867,10 @@ function updateMapRevealHint(){ const el=$("#mapRevealHint"); if(!el)return; con
                         : ("🔒 "+hidden+" character"+(hidden>1?"s":"")+" will appear as you read further (use the « ✓ Read up to here » button).");
     el.style.display="block"; } else el.style.display="none"; }
 function draw(){ if(state.tab==="map"){ updateMapRevealHint(); physics(); const W=cv.width,H=cv.height; ctx.clearRect(0,0,W,H);
-    const Z=cam.z*dpr; ctx.save(); ctx.translate(W/2,H/2); ctx.scale(Z,Z);
+    const Z=cam.z*dpr;
     const P=new Map(); for(const n of G.nodes){ if(visN(n)) P.set(n,project(n)); }
+    let cogX=0,cogY=0,cnt=0; for(const pr of P.values()){ cogX+=pr.x; cogY+=pr.y; cnt++; } if(cnt){ cogX/=cnt; cogY/=cnt; } lastCog.x=cogX; lastCog.y=cogY;  // recentrage auto sur le centre de masse
+    ctx.save(); ctx.translate(W/2+pan.x*dpr,H/2+pan.y*dpr); ctx.scale(Z,Z); ctx.translate(-cogX,-cogY);
     for(const e of G.edges){ if(!visE(e))continue; const pa=P.get(e.a),pb=P.get(e.b); if(!pa||!pb)continue; const al=.13+.10*Math.sin(Date.now()/700+e.a.x);
       const g=ctx.createLinearGradient(pa.x,pa.y,pb.x,pb.y); g.addColorStop(0,TYPE_COL[e.a.type]||"#46e0ff"); g.addColorStop(1,TYPE_COL[e.b.type]||"#9a6bff");
       ctx.strokeStyle=g;ctx.globalAlpha=al;ctx.lineWidth=.9;ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);ctx.stroke();
@@ -2885,7 +2888,7 @@ function draw(){ if(state.tab==="map"){ updateMapRevealHint(); physics(); const 
 requestAnimationFrame(draw);
 setInterval(()=>{ if(state.tab==="map"&&!drag&&!state.selected) rot.y+=0.0016; },30);
 let drag=null;
-function pick(px,py){ const r=cv.getBoundingClientRect(); const mx=(px-r.left-r.width/2)/cam.z, my=(py-r.top-r.height/2)/cam.z;
+function pick(px,py){ const r=cv.getBoundingClientRect(); const mx=(px-r.left-r.width/2-pan.x)/cam.z+lastCog.x, my=(py-r.top-r.height/2-pan.y)/cam.z+lastCog.y;
   let best=null,bd=1e9; for(const n of G.nodes){ if(!visN(n))continue; const pr=project(n); const d=Math.hypot(pr.x-mx,pr.y-my); const rad=(n.main?13:6.5)*2.2*pr.sc+8; if(d<rad&&d<bd){bd=d;best=n;} } return best; }
 cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,moved:false,rx:rot.x,ry:rot.y};});
 cv.addEventListener("pointermove",e=>{if(_pinch||!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;rot.y=drag.ry+dx*0.006;rot.x=Math.max(-1.45,Math.min(1.45,drag.rx+dy*0.006));});
@@ -2893,8 +2896,11 @@ cv.addEventListener("pointerup",e=>{if(drag&&!drag.moved){const n=pick(e.clientX
 cv.addEventListener("wheel",e=>{e.preventDefault();const f=e.deltaY<0?1.12:0.89;cam.z=Math.max(.3,Math.min(3.5,cam.z*f));},{passive:false});
 // Pinch-to-zoom tactile (2 doigts) sur la constellation — mobile
 let _pinch=null; const _tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
-cv.addEventListener("touchstart",e=>{ if(e.touches.length===2){ _pinch={d:_tdist(e.touches),z:cam.z}; drag=null; e.preventDefault(); } },{passive:false});
-cv.addEventListener("touchmove",e=>{ if(_pinch&&e.touches.length===2){ const d=_tdist(e.touches); if(_pinch.d>0) cam.z=Math.max(.3,Math.min(3.5,_pinch.z*d/_pinch.d)); e.preventDefault(); } },{passive:false});
+const _tmid=t=>({x:(t[0].clientX+t[1].clientX)/2,y:(t[0].clientY+t[1].clientY)/2});
+const _panMax=()=>{ const r=cv.getBoundingClientRect(); return {x:r.width*0.42,y:r.height*0.42}; };  // garde-fou : le nuage recentré ne sort jamais de plus de ~42% → toujours visible
+cv.addEventListener("touchstart",e=>{ if(e.touches.length===2){ const m=_tmid(e.touches); _pinch={d:_tdist(e.touches),z:cam.z,mx:m.x,my:m.y,px:pan.x,py:pan.y}; drag=null; e.preventDefault(); } },{passive:false});
+cv.addEventListener("touchmove",e=>{ if(_pinch&&e.touches.length===2){ const d=_tdist(e.touches); if(_pinch.d>0) cam.z=Math.max(.3,Math.min(3.5,_pinch.z*d/_pinch.d));
+  const m=_tmid(e.touches), lim=_panMax(); pan.x=Math.max(-lim.x,Math.min(lim.x,_pinch.px+(m.x-_pinch.mx))); pan.y=Math.max(-lim.y,Math.min(lim.y,_pinch.py+(m.y-_pinch.my))); e.preventDefault(); } },{passive:false});
 cv.addEventListener("touchend",e=>{ if(e.touches.length<2) _pinch=null; });
 function openNode(n){ state.selected=n; const a=state.analysis;
   $("#npName").textContent=n.name||n.id; $("#npAlias").textContent=n.known_as?("« "+n.known_as+" »"):""; $("#npNote").textContent=n.note||"";
@@ -2967,10 +2973,10 @@ $("#btnTree").onclick=()=>setMapMode(state.mapMode==="tree"?"graph":"tree");
 $("#famTree").addEventListener("click",e=>{ const n=e.target.closest("[data-fid]"); if(!n)return; const tn=(G.nodes||[]).find(x=>x.id===n.dataset.fid); if(tn) openNode(tn); });
 // Zoom de l'arbre généalogique : molette (PC) + pinch 2 doigts (mobile)
 (function(){ const ft=$("#famTree"); if(!ft)return;
-  ft.addEventListener("wheel",e=>{ e.preventDefault(); const f=e.deltaY<0?1.1:0.9; famZoom=Math.max(.4,Math.min(3,famZoom*f)); applyFamZoom(); },{passive:false});
+  ft.addEventListener("wheel",e=>{ e.preventDefault(); const f=e.deltaY<0?1.1:0.9; famZoom=Math.max(.5,Math.min(2.5,famZoom*f)); applyFamZoom(); },{passive:false});
   let fp=null; const fd=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
   ft.addEventListener("touchstart",e=>{ if(e.touches.length===2){ fp={d:fd(e.touches),z:famZoom}; e.preventDefault(); } },{passive:false});
-  ft.addEventListener("touchmove",e=>{ if(fp&&e.touches.length===2){ const d=fd(e.touches); if(fp.d>0){ famZoom=Math.max(.4,Math.min(3,fp.z*d/fp.d)); applyFamZoom(); } e.preventDefault(); } },{passive:false});
+  ft.addEventListener("touchmove",e=>{ if(fp&&e.touches.length===2){ const d=fd(e.touches); if(fp.d>0){ famZoom=Math.max(.5,Math.min(2.5,fp.z*d/fp.d)); applyFamZoom(); } e.preventDefault(); } },{passive:false});
   ft.addEventListener("touchend",e=>{ if(e.touches.length<2) fp=null; });
 })();
 

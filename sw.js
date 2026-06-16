@@ -4,7 +4,7 @@
  * ni aux requêtes non-GET → sinon on casserait la génération / le streaming audio.
  * Données utilisateur (livres, audio, images) = IndexedDB, hors périmètre du SW.
  */
-const VERSION = "sv-0.95.0";
+const VERSION = "sv-0.96.0";
 const SHELL_CACHE = "storyvoice-shell-" + VERSION;
 const SHELL = [
   "./",
