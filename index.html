@@ -58,7 +58,7 @@
   .icon-btn:hover{color:#fff;border-color:rgba(120,150,255,.5)}
 
   main{flex:1;position:relative;overflow:hidden}
-  .view{position:absolute;inset:0;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .35s,visibility .35s;overflow-y:auto;overflow-x:hidden}
+  .view{position:absolute;inset:0;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .35s,visibility .35s;overflow-y:auto;overflow-x:hidden;padding-bottom:var(--mini-space,0px)}/* --mini-space = hauteur du mini-lecteur → le contenu bas (input Demander, réglages Écoute…) ne passe plus dessous */
   .view.active{opacity:1;visibility:visible;pointer-events:auto}
 
   .center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;text-align:center;padding:30px;gap:18px}
@@ -264,7 +264,7 @@
   .map-top{padding:12px 24px}
   #constellation{flex:1;display:block;width:100%;touch-action:none;cursor:grab}
   #constellation:active{cursor:grabbing}
-  .map-legend{position:absolute;left:18px;bottom:16px;z-index:4;display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--txt-dim);
+  .map-legend{position:absolute;left:18px;bottom:calc(16px + var(--mini-space,0px));z-index:4;display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--txt-dim);
     background:rgba(8,10,26,.55);padding:8px 12px;border-radius:10px;border:1px solid var(--panel-brd);backdrop-filter:blur(8px)}
   .lg{display:flex;align-items:center;gap:6px}
   .lg-btn{appearance:none;border:1px solid var(--panel-brd);background:rgba(0,0,0,.3);color:var(--txt-dim);font:inherit;font-size:12px;font-weight:600;padding:5px 11px;border-radius:9px;cursor:pointer;transition:.2s}
@@ -374,7 +374,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.5.5</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.6.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -1954,7 +1954,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.5.5";
+const VERSION = "1.6.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2116,12 +2116,16 @@ function loadStore(){
     const seen=new Set(); library=library.filter(b=>{const k=(b.title||"").toLowerCase().trim(); if(!k)return true; if(seen.has(k))return false; seen.add(k); return true;});
   }catch(e){}
 }
+let _saveFail=false;
 function saveStore(){ if(!S.persist) return;
   const payload={settings:S, library, usage:cumUsage, byModel:cumByModel};
-  try{ localStorage.setItem(LS_KEY, JSON.stringify(payload)); return; }catch(e){}
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(payload)); _saveFail=false; return; }catch(e){}
   // quota dépassé → réessayer sans les textes bruts (rawChapters = les + lourds), résumés préservés
   try{ const light={...payload, library:library.map(b=>{ const {rawChapters,...rest}=b; return rest; })};
-    localStorage.setItem(LS_KEY, JSON.stringify(light)); }catch(e2){} }
+    localStorage.setItem(LS_KEY, JSON.stringify(light)); _saveFail=false; return; }catch(e2){}
+  // ⚠️ les DEUX tentatives ont échoué → ne PAS rester silencieux (perte de données). Alerter UNE fois + proposer l'export.
+  if(!_saveFail){ _saveFail=true; try{ toast(_nfr()?"⚠️ Stockage plein — exportez vos données (⚙)":"⚠️ Storage full — export your data (⚙)");
+    if(typeof notifPush==="function") notifPush({icon:"⚠️",title:_nfr()?"Sauvegarde impossible — espace plein":"Save failed — storage full",detail:_nfr()?"Exportez vos données dans ⚙ Réglages pour ne rien perdre":"Export your data in ⚙ Settings to avoid losing it",status:"error"}); }catch(_){} } }
 function forgetAll(){ try{localStorage.removeItem(LS_KEY);}catch(e){} try{idbClearAll();}catch(_){} library=[]; state.currentId=null; state.analysis=null; S.lastBook=null; setActiveBook(); renderLibrary(); toast(t("t.forgotten")); }
 
 (function starfield(){
@@ -2770,7 +2774,9 @@ async function analyze(text){
     toast("✦ "+(data.title||"Analyse")+" — "+data.entities.length+" · "+(data.relations?.length||0));
   }catch(err){ clearInterval(it); console.error(err); show("home"); $("#homeHint").textContent="⚠️ "+err.message; toast("Erreur : "+err.message); }
 }
-function enableTabs(){ ["read","sum","map","listen","ask"].forEach(v=>{ const el=$(`#tabs .tab[data-view="${v}"]`); if(el) el.disabled=false; }); }
+function enableTabs(){ ["read","sum","map","listen","ask"].forEach(v=>{ const el=$(`#tabs .tab[data-view="${v}"]`); if(el) el.disabled=false; });
+  try{ if(typeof populateListenSource==="function") populateListenSource(); }catch(_){} // peuple #listenSource dès l'analyse → mini-lecteur visible sans devoir ouvrir Écoute d'abord
+  if(typeof updateMiniPlayer==="function") updateMiniPlayer(); }
 
 /* ---------------- « Demander à l'histoire » : Q&A gated anti-spoiler ---------------- */
 function askContext(){ const a=state.analysis, pct=state.readPct; if(!a) return "";
@@ -4363,7 +4369,8 @@ function updateMiniPlayer(){ const mp=$("#miniPlayer"); if(!mp)return;
   // PERMANENT absolument partout (mandat Quang) : visible dès qu'un chapitre est sélectionné OU pendant une lecture,
   // sur TOUS les onglets ET en plein-texte. En plein-texte, on le remonte en haut pour ne pas chevaucher #immBar (en bas).
   const visible = ( _listenOn || miniHasChapter() );
-  mp.style.display=visible?"flex":"none"; mp.classList.toggle("mp-imm",!!immersive); if(!visible) return;
+  mp.style.display=visible?"flex":"none"; mp.classList.toggle("mp-imm",!!immersive);
+  if(!visible){ document.documentElement.style.setProperty("--mini-space","0px"); return; }
   // état compact/étendu (S.miniExpanded ; défaut compact)
   const expanded=!!S.miniExpanded; mp.classList.toggle("expanded",expanded); mp.classList.toggle("compact",!expanded);
   const tg=$("#mpToggle"); if(tg){ tg.textContent=expanded?"⌄":"⌃"; tg.title=expanded?(FR?"Réduire le lecteur":"Collapse player"):(FR?"Agrandir le lecteur":"Expand player"); }
@@ -4396,6 +4403,8 @@ function updateMiniPlayer(){ const mp=$("#miniPlayer"); if(!mp)return;
   const pv=$("#mpPrev"), nx=$("#mpNext");
   if(pv) pv.disabled = what==="summary" ? (cur<0) : (cur<=0);
   if(nx) nx.disabled = (cur>=chs.length-1);
+  // réserve l'espace bas = hauteur réelle du mini (compact/étendu) → aucune collision avec le contenu des onglets
+  document.documentElement.style.setProperty("--mini-space",(Math.ceil(mp.getBoundingClientRect().height)+22)+"px");
 }
 // bouton principal : pause si en lecture, reprise si en pause, lecture si prêt, sinon → onglet Écoute pour générer
 // Bouton principal : EXACTEMENT le même chemin que les boutons d'Écoute (listenPause/listenPlay) → tous les réglages
