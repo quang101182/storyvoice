@@ -148,7 +148,7 @@
     background-repeat:no-repeat;background-position:right 9px center}
   .read-sel select:hover{border-color:var(--cyan)}
   .read-safe{font-size:11px;color:var(--txt-faint);white-space:nowrap}
-  @media(max-width:620px){ .read-safe{display:none} }
+  @media(max-width:620px){ .read-safe{font-size:10px;flex:0 0 auto} }
   .reader-wrap{max-width:720px;margin:0 auto;padding:14px 24px 90px}
   .reader-bar{position:sticky;top:0;z-index:5;background:linear-gradient(180deg,rgba(8,10,26,.97),rgba(8,10,26,.55));backdrop-filter:blur(8px);display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 0 12px;margin-bottom:16px;border-bottom:1px solid var(--panel-brd)}
   .reader-bar select{flex:1;min-width:130px;background:rgba(0,0,0,.35);color:var(--txt);border:1px solid var(--panel-brd);border-radius:9px;padding:7px 10px;font:inherit;font-size:13px}
@@ -382,7 +382,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.6.2</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.7.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -400,9 +400,10 @@
       </div>
     </div>
     <button class="icon-btn" id="btnSettings" title="Réglages">⚙</button>
-    <div id="notifPanel" class="notifpop" style="display:none"></div>
     </div>
   </header>
+  <!-- #notifPanel HORS du header : le header a backdrop-filter (= contexte d'empilement) qui piégeait le panneau DERRIÈRE l'activeBar / les sélecteurs de chapitre. Au niveau .app, son z-index:60 est effectif. -->
+  <div id="notifPanel" class="notifpop" style="display:none"></div>
   <!-- Notification = RECTANGLE DYNAMIQUE permanent (remplace la cloche, mandat Quang) : affiche l'événement en cours/récent
        en largeur SANS clic ; au repos = état neutre cliquable ; clic → panneau d'historique (même contenu que l'ex-cloche). Session only, 0 persistance. -->
   <div id="notifBanner" style="display:none" title="Notifications — appuyez pour l'historique">
@@ -583,7 +584,7 @@
             <div class="row2" id="elToneRow" style="margin:0 0 4px">
               <div class="set-row" id="elToneCell">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                  <label data-i18n="el.tone" style="margin:0">🎭 Ton de la narration</label>
+                  <label data-i18n="el.tone" style="margin:0">🎭 Ton de la voix</label>
                   <span id="elToneSuggest" style="font-size:12px;font-weight:700;display:none"></span>
                 </div>
                 <select id="elTone" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--panel-brd);border-radius:11px;color:var(--txt);font:inherit;padding:9px 11px;margin-top:4px"></select>
@@ -714,7 +715,7 @@
         <select id="selProvider" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--panel-brd);border-radius:11px;color:var(--txt);font:inherit;padding:9px 11px;margin-top:6px"></select>
       </div>
       <div class="set-row">
-        <label data-i18n="set.personality">🎭 Personnalité du conteur</label>
+        <label data-i18n="set.personality">🖋️ Style d'analyse</label>
         <span class="sub" data-i18n="set.personalitySub">Le ton d'écriture des résumés et analyses, appliqué à la prochaine analyse (la narration audio a son propre ton dans l'onglet Écoute).</span>
         <select id="selPerso" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--panel-brd);border-radius:11px;color:var(--txt);font:inherit;padding:9px 11px;margin-top:6px"></select>
         <div id="persoBookHint" style="font-size:11.5px;margin-top:6px;display:none;line-height:1.5"></div>
@@ -1964,7 +1965,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.6.2";
+const VERSION = "1.7.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -1996,7 +1997,7 @@ const I18N = {
   "how.s3t":"Explorez sans spoiler","how.s3d":"Réglez « jusqu'où j'ai lu » : tout se révèle à votre rythme, jamais la suite.",
   "read.upto":"J'ai lu jusqu'au :","read.all":"📖 Tout le livre","read.chap":"Ch.","read.safe":"🔒 anti-spoiler","active.label":"Lecture active :","vol.title":"🔊 Volume des voix",
   "narr.pause":"⏸ Pause","narr.resume":"▶ Reprendre","narr.settings":"Réglages de voix","narr.castTitle":"Voix par personnage","narr.transTitle":"Transcription",
-  "el.tone":"🎭 Ton de la narration","tone.neutre":"Neutre","tone.sombre":"Sombre & tendu","tone.epique":"Épique & dramatique","tone.doux":"Doux & intime","tone.enjoue":"Léger & enjoué",
+  "el.tone":"🎭 Ton de la voix","tone.neutre":"Neutre","tone.sombre":"Sombre & tendu","tone.epique":"Épique & dramatique","tone.doux":"Doux & intime","tone.enjoue":"Léger & enjoué",
   "tone.neutre.d":"Lecture équilibrée et polyvalente (réglage par défaut).","tone.sombre.d":"Plus d'émotion et de tension — idéal pour les récits sombres (ex : Game of Thrones).","tone.epique.d":"Souffle dramatique, intensité maximale.","tone.doux.d":"Posé, calme, intime.","tone.enjoue.d":"Vif et expressif.","tone.changed":"Ton : {t} — appliqué à la prochaine écoute","tone.fixed":"🎭 Les voix Google Chirp 3 HD ont une intonation fixe (le ton n'est pas réglable). Utilisez la Vitesse, ou le moteur OpenAI pour piloter le ton.",
   "cost.budgetSub":"Plafond sur le coût TOTAL cumulé (texte + voix). Réinitialisable quand vous voulez.","cost.reset":"↺ Réinitialiser","cost.resetEvery":"↺ Réinit. :","cost.resetConfirm":"Remettre à zéro le compteur de coûts cumulés (texte + voix) ?","cost.resetDone":"Compteur de coûts réinitialisé.",
   "len.short":"Court","len.medium":"Moyen","len.long":"Long",
@@ -2015,7 +2016,7 @@ const I18N = {
   "input.tip":"💡 EPUB : choisissez les chapitres à analyser ci-dessus (un livre complet s'analyse par lots). Texte collé : ~40 000 caractères pour un essai rapide. · Formats : TXT, EPUB, PDF (texte) — PDF scannés/images (OCR) bientôt.","input.cancel":"Annuler","input.analyze":"✦ Analyser","pdf.scanned":"PDF scanné ou sans texte extractible. Essayez un EPUB/TXT, ou copiez-collez le texte.",
   "set.title":"Réglages","set.uiLang":"🌐 Langue de l'interface","set.contentLang":"🌐 Langue du livre",
   "set.contentLangSub":"« Originale » = la langue d'origine du livre. Sinon, le livre (lecture, écoute et résumés) est traduit dans la langue choisie.","set.auto":"Auto",
-  "set.personality":"🎭 Personnalité du conteur","set.personalitySub":"Le ton d'écriture des résumés et analyses, appliqué à la prochaine analyse (la narration audio a son propre ton dans l'onglet Écoute).",
+  "set.personality":"🖋️ Style d'analyse","set.personalitySub":"Le ton d'écriture des résumés et analyses, appliqué à la prochaine analyse (la voix narrée a son propre ton dans l'onglet Écoute).",
   "perso.neutre":"Neutre","perso.cine":"Cinématographique","perso.pedago":"Pédagogue","perso.complice":"Complice","perso.dramatique":"Dramatique",
   "set.persist":"🧠 Persistance mémoire","set.persistSub":"StoryVoice se souvient de votre bibliothèque, votre position et vos réglages entre les sessions.",
   "set.tools":"📊 Suivi & coûts","set.toolsSub":"Consultez le détail des coûts d'analyse et le journal technique.","set.openCost":"💰 Coûts","set.openLog":"🧾 Journal",
@@ -2047,7 +2048,7 @@ const I18N = {
   "how.s3t":"Explore spoiler-free","how.s3d":"Set “how far I've read”: everything unfolds at your pace, never ahead.",
   "read.upto":"I've read up to:","read.all":"📖 Whole book","read.chap":"Ch.","read.safe":"🔒 spoiler-free","active.label":"Reading:","vol.title":"🔊 Voice volume",
   "narr.pause":"⏸ Pause","narr.resume":"▶ Resume","narr.settings":"Voice settings","narr.castTitle":"Voice per character","narr.transTitle":"Transcript",
-  "el.tone":"🎭 Narration tone","tone.neutre":"Neutral","tone.sombre":"Dark & tense","tone.epique":"Epic & dramatic","tone.doux":"Soft & intimate","tone.enjoue":"Light & lively",
+  "el.tone":"🎭 Voice tone","tone.neutre":"Neutral","tone.sombre":"Dark & tense","tone.epique":"Epic & dramatic","tone.doux":"Soft & intimate","tone.enjoue":"Light & lively",
   "tone.neutre.d":"Balanced, all-purpose delivery (default).","tone.sombre.d":"More emotion and tension — ideal for dark stories (e.g. Game of Thrones).","tone.epique.d":"Dramatic sweep, maximum intensity.","tone.doux.d":"Calm, steady, intimate.","tone.enjoue.d":"Brisk and expressive.","tone.changed":"Tone: {t} — applied on next listen","tone.fixed":"🎭 Google Chirp 3 HD voices have a fixed intonation (tone isn't adjustable). Use Speed, or the OpenAI engine to steer the tone.",
   "cost.budgetSub":"Cap on the TOTAL cumulative cost (text + voice). Resettable anytime.","cost.reset":"↺ Reset","cost.resetEvery":"↺ Reset:","cost.resetConfirm":"Reset the cumulative cost counter (text + voice)?","cost.resetDone":"Cost counter reset.",
   "len.short":"Short","len.medium":"Medium","len.long":"Long",
@@ -2066,7 +2067,7 @@ const I18N = {
   "input.tip":"💡 EPUB: pick the chapters to analyze above (a full book is analyzed in batches). Pasted text: ~40,000 characters for a quick try. · Formats: TXT, EPUB, PDF (text) — scanned PDFs/images (OCR) coming soon.","input.cancel":"Cancel","input.analyze":"✦ Analyze","pdf.scanned":"Scanned PDF or no extractable text. Try an EPUB/TXT, or paste the text.",
   "set.title":"Settings","set.uiLang":"🌐 Interface language","set.contentLang":"🌐 Book language",
   "set.contentLangSub":"“Original” = the book's original language. Otherwise, the book (reading, listening and summaries) is translated into the chosen language.","set.auto":"Auto",
-  "set.personality":"🎭 Narrator personality","set.personalitySub":"The writing tone of summaries and analyses, applied to the next analysis (audio narration has its own tone in the Listen tab).",
+  "set.personality":"🖋️ Analysis style","set.personalitySub":"The writing tone of summaries and analyses, applied to the next analysis (the narrated voice has its own tone in the Listen tab).",
   "perso.neutre":"Neutral","perso.cine":"Cinematic","perso.pedago":"Teacher","perso.complice":"Playful","perso.dramatique":"Dramatic",
   "set.persist":"🧠 Memory persistence","set.persistSub":"StoryVoice remembers your library, position and settings across sessions.",
   "set.tools":"📊 Tracking & costs","set.toolsSub":"View detailed analysis costs and the technical log.","set.openCost":"💰 Costs","set.openLog":"🧾 Log",
@@ -3236,10 +3237,19 @@ function maybeAutoAdvanceScroll(){ const rv=$("#readView"); if(!rv) return; cons
 function readerMark(){ const list=readerChapters(); const c=list[state.readerIdx]; if(!c)return;
   const all=state.rawChapters||[]; const gi=all.indexOf(c); const next=all[gi+1];
   const pct=next? Math.max(0,(next.start_pct||0)-1) : 100; setRead(pct); renderReader(); toast(t("reader.marked")); }
-$("#readerChap").onchange=e=>{ state.readerIdx=+e.target.value; renderReader(); persistReaderPos(); };
+// ── Lot A #3 : sync sélecteurs de chapitre LISEUSE ↔ ÉCOUTE (clé = numéro de chapitre ; ne révèle JAMAIS → anti-spoiler intact, readPct inchangé) ──
+let _chapSyncing=false;
+function syncListenToReader(){ if(_chapSyncing) return; if(typeof isPlaying==="function" && isPlaying()) return; // ne pas couper une narration en cours
+  if((S.listenWhat||"story")==="summary") return; const sel=$("#listenSource"); if(!sel) return;
+  const c=readerChapters()[state.readerIdx]; if(!c||c.num==null) return;
+  _chapSyncing=true; try{ if(selectListenChapByNum(c.num)){ state.narrTurns=null; persistListenSel(); previewListenText&&previewListenText(); updateCastVisibility&&updateCastVisibility(); renderElEstimate&&renderElEstimate(); updateCacheBadge&&updateCacheBadge(); if(typeof updateListenNavBtns==="function")updateListenNavBtns(); refreshCustomSelects&&refreshCustomSelects(); } } finally{ _chapSyncing=false; } }
+function syncReaderToListen(){ if(_chapSyncing) return; const num=(typeof curChapterNum==="function")?curChapterNum():null; if(num==null) return;
+  const i=readerChapters().findIndex(c=>c.num===num); if(i<0||i===state.readerIdx) return;
+  _chapSyncing=true; try{ state.readerIdx=i; renderReader(); persistReaderPos(); } finally{ _chapSyncing=false; } }
+$("#readerChap").onchange=e=>{ state.readerIdx=+e.target.value; renderReader(); persistReaderPos(); syncListenToReader(); };
 if($("#readerLang")) $("#readerLang").onchange=e=>{ S.listenLang=e.target.value; saveStore(); renderReader(); }; // langue UNIFIÉE liseuse↔écoute
-$("#readerPrev").onclick=()=>{ if(state.readerIdx>0){ state.readerIdx--; renderReader(); persistReaderPos(); } };
-$("#readerNext").onclick=()=>{ if(state.readerIdx<readerChapters().length-1){ const leaving=state.readerIdx; state.readerIdx++; renderReader(); persistReaderPos(); autoAdvanceRead(leaving); /* progression auto : marque comme lu le chapitre quitté (couvre les chapitres trop courts pour scroller) */ } };
+$("#readerPrev").onclick=()=>{ if(state.readerIdx>0){ state.readerIdx--; renderReader(); persistReaderPos(); syncListenToReader(); } };
+$("#readerNext").onclick=()=>{ if(state.readerIdx<readerChapters().length-1){ const leaving=state.readerIdx; state.readerIdx++; renderReader(); persistReaderPos(); autoAdvanceRead(leaving); syncListenToReader(); /* progression auto : marque comme lu le chapitre quitté (couvre les chapitres trop courts pour scroller) */ } };
 $("#readerMark").onclick=readerMark;
 // --- Auto-hide du chrome (header + bandeau « Lecture active ») en lecture immersive sur mobile ---
 let _chromeHidden=false, _lastScrollY=0;
@@ -4181,8 +4191,10 @@ async function renderGenLibrary(){ const sec=$("#genLibrary"), body=$("#genLibBo
   if(legacy) h+=`<div class="hint" style="font-size:10px;margin-top:6px;opacity:.7">+ ${legacy} ${FR?"clip(s) d'anciennes sessions (non étiquetés)":"clip(s) from older sessions (untagged)"}</div>`;
   h+=`<div class="hint" style="font-size:11px;margin-top:8px;border-top:1px solid var(--panel-brd);padding-top:6px">≈ ${totalChars.toLocaleString()} ${FR?"car. déjà générés · 0 crédit pour réécouter":"chars already generated · 0 credit to replay"}</div>`;
   body.innerHTML=h;
+  // Lot A #4 : « ce qui est déjà payé » visible d'emblée → corps déplié par défaut (état persisté, l'utilisateur peut replier).
+  const open=S.genLibOpen!==false; body.style.display=open?"block":"none"; const chev=$("#genLibChevron"); if(chev)chev.textContent=open?"▴":"▾";
 }
-if($("#genLibToggle")){ $("#genLibToggle").onclick=()=>{ const b=$("#genLibBody"); const open=b.style.display!=="none"; b.style.display=open?"none":"block"; const c=$("#genLibChevron"); if(c)c.textContent=open?"▾":"▴"; }; }
+if($("#genLibToggle")){ $("#genLibToggle").onclick=()=>{ const b=$("#genLibBody"); const wasOpen=b.style.display!=="none"; b.style.display=wasOpen?"none":"block"; S.genLibOpen=!wasOpen; saveStore(); const c=$("#genLibChevron"); if(c)c.textContent=wasOpen?"▾":"▴"; }; }
 if($("#genLibBody")){ $("#genLibBody").addEventListener("click", async e=>{
   const del=e.target.closest(".gen-del"); if(del){ const d=del.dataset; const FR=(S.uiLang||"fr")!=="en"; const target=_genGK({what:d.what,chapTitle:d.chap,mode:d.mode,voiceId:d.voice,tone:d.tone,model:d.model});
     const who=(d.mode==="multi")?(FR?"Multi-voix":"Multi-voice"):elVoiceName(d.voice);
@@ -4274,11 +4286,11 @@ function renderAdvVoiceSummary(){ const el=$("#advVoiceSummary"); if(!el)return;
   el.textContent="— "+parts.filter(Boolean).join(" · "); }
 function applyAdvVoice(){ const open=S.listenAdvOpen!==false; const b=$("#advVoiceBody"); if(b)b.style.display=open?"":"none"; const c=$("#advVoiceChevron"); if(c)c.textContent=open?"▾":"▸"; renderAdvVoiceSummary(); }
 if($("#advVoiceToggle")) $("#advVoiceToggle").onclick=()=>{ S.listenAdvOpen=!(S.listenAdvOpen!==false); saveStore(); applyAdvVoice(); };
-$("#listenSource").onchange=()=>{ state.narrTurns=null; listenStop(); persistListenSel(); previewListenText(); updateCastVisibility(); renderElEstimate(); updateCacheBadge(); if(typeof updateListenNavBtns==="function")updateListenNavBtns(); };
+$("#listenSource").onchange=()=>{ state.narrTurns=null; listenStop(); persistListenSel(); previewListenText(); updateCastVisibility(); renderElEstimate(); updateCacheBadge(); if(typeof updateListenNavBtns==="function")updateListenNavBtns(); syncReaderToListen(); };
 // #R8 — navigation Précédent/Suivant en Écoute (chapitres CHARGÉS). « Suivant » révèle le chapitre suivant si besoin (écouter = avancer la lecture) puis lit.
 function curListenOrigIdx(){ const sel=$("#listenSource"); if(!sel) return -1; const v=sel.value; if((S.listenWhat||"story")==="summary"){ return (v==="g"||v==="")?-1:+v.slice(1); } return v===""?-1:+v; }
 // #R8-bis (Quang) : changer de chapitre = SÉLECTIONNER seulement, JAMAIS lancer l'audio (l'utilisateur décide). L'enchaînement auto se fait en FIN de chapitre (autoAdvanceChapter).
-function afterListenNav(){ state.narrTurns=null; listenStop(); persistListenSel(); previewListenText(); updateCastVisibility(); renderElEstimate(); updateCacheBadge(); updateListenNavBtns(); refreshCustomSelects(); }
+function afterListenNav(){ state.narrTurns=null; listenStop(); persistListenSel(); previewListenText(); updateCastVisibility(); renderElEstimate(); updateCacheBadge(); updateListenNavBtns(); refreshCustomSelects(); syncReaderToListen(); }
 function autoAdvanceChapter(){ if(!state.analysis) return; const chs=state.rawChapters||[]; const cur=curListenOrigIdx(); const target=cur+1; if(target>chs.length-1) return; // fin du contenu chargé → on s'arrête
   const what=(S.listenWhat||"story"); const tc=chs[target]; if(tc&&(tc.start_pct||0)>state.readPct){ const after=chs[target+1]; const end=after?Math.max(0,(after.start_pct||0)-1):100; setRead(Math.max(state.readPct,end)); }
   populateListenSource(); const sel=$("#listenSource"); if(sel) sel.value=(what==="summary")?("c"+target):String(target);
