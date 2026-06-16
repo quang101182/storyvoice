@@ -372,7 +372,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.5.2</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.5.3</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -860,6 +860,7 @@
   </div>
   <div class="mp-line2">
     <button class="mp-btn mp-main" id="mpPlay" title="Lire / Pause">▶</button>
+    <button class="mp-btn mp-sm" id="mpRestart" title="Depuis le début" style="display:none">⟲</button>
     <button class="mp-btn" id="mpStop" title="Stop">■</button>
     <button class="mp-btn mp-sm mp-focus" id="mpFocus" title="Revenir au passage lu" style="display:none">🎯</button>
     <button class="mp-btn mp-go mp-goonly" id="mpGo" title="Plein texte">⛶</button>
@@ -1950,7 +1951,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.5.2";
+const VERSION = "1.5.3";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -3568,8 +3569,9 @@ async function segmentScene(text,silent){ const slice=text.slice(0,SEG_MAX_CHARS
 function setPauseBtn(paused){ const lbl=paused?t("narr.resume"):t("narr.pause"); ["#listenPause","#immPause"].forEach(s=>{const b=$(s); if(b)b.textContent=lbl;}); }
 function setPauseDisabled(d){ ["#listenPause","#immPause"].forEach(s=>{const b=$(s); if(b)b.disabled=d;}); }
 let playGen=0;
-function playTurns(turns,cast,startIdx){ const gen=++playGen; state._turns=turns; state._cast=cast; narrIdx=startIdx||0; narrPlaying=true; setFollow(true); const pb=$("#listenPause"); if(pb){pb.disabled=false;} setPauseDisabled(false); setPauseBtn(false);
-  const next=()=>{ if(gen!==playGen) return; if(!narrPlaying||narrIdx>=turns.length){ const done=narrIdx>=turns.length; narrPlaying=false; stat("#listenStatus",t("narr.done")); setPauseDisabled(true); setPauseBtn(false); updateFocusBtn(); updateCacheBadge(); if(done) autoAdvanceChapter(); return; }
+function playTurns(turns,cast,startIdx){ const gen=++playGen; state._turns=turns; state._cast=cast; narrIdx=Math.max(0,Math.min(startIdx||0,turns.length-1)); narrPlaying=true; setFollow(true); const pb=$("#listenPause"); if(pb){pb.disabled=false;} setPauseDisabled(false); setPauseBtn(false);
+  const next=()=>{ if(gen!==playGen) return; if(!narrPlaying||narrIdx>=turns.length){ const done=narrIdx>=turns.length; narrPlaying=false; stat("#listenStatus",t("narr.done")); setPauseDisabled(true); setPauseBtn(false); updateFocusBtn(); if(done) clearResume(); updateCacheBadge(); if(done) autoAdvanceChapter(); return; }
+    saveResume(narrIdx, turns.length); // signet : tour courant
     const tn=turns[narrIdx], c=cast[tn.speaker||"narrateur"]||cast["narrateur"]||{};
     const u=new SpeechSynthesisUtterance(tn.text); if(c.voice)u.voice=c.voice; u.pitch=c.pitch||1; u.rate=(S.narrRate||100)/100; u.volume=(S.vol??100)/100;
     const i=narrIdx, cur=$("#ntr"+i); if(cur){ cur.classList.add("active"); maybeScroll(cur); }
@@ -3578,19 +3580,19 @@ function playTurns(turns,cast,startIdx){ const gen=++playGen; state._turns=turns
     u.onend=()=>{ clean(); narrIdx++; next(); }; u.onerror=()=>{ clean(); narrIdx++; next(); };
     speechSynthesis.speak(u); };
   next(); }
-function playSingle(resolved){ // voix unique : 1 phrase = 1 tour (karaoké + scroll fiables)
+function playSingle(resolved,startIdx){ // voix unique : 1 phrase = 1 tour (karaoké + scroll fiables)
   const turns=splitSentences(resolved.text).map(s=>({speaker:"narrateur",text:s}));
   const eff=turns.length?turns:[{speaker:"narrateur",text:resolved.text}];
-  renderListenText(eff); playTurns(eff, {narrateur:{voice:listenVoice(),pitch:1}}); }
-async function playBrowser(resolved){ if(!window.speechSynthesis){toast(t("narr.noVoice"));return;} speechSynthesis.cancel();
+  renderListenText(eff); playTurns(eff, {narrateur:{voice:listenVoice(),pitch:1}}, startIdx); }
+async function playBrowser(resolved,startIdx){ if(!window.speechSynthesis){toast(t("narr.noVoice"));return;} speechSynthesis.cancel();
   if(isMulti()){ setLoading("#listenStatus",t("narr.segmenting"));
     let turns=[]; try{ turns=await segmentScene(resolved.text); }catch(e){ turns=[]; }
     if(!turns.length){ // segmentation impossible → repli voix unique (la narration joue quand même)
-      stat("#listenStatus",t("narr.segFallback")); playSingle(resolved); return; }
+      stat("#listenStatus",t("narr.segFallback")); playSingle(resolved,startIdx); return; }
     state.narrTurns=turns; const speakers=[...new Set(turns.map(x=>x.speaker||"narrateur"))], cast=castVoices(speakers);
     renderCast(speakers,cast); $("#castFold").style.display=""; renderListenText(turns);
-    clearStatus(); updateCacheBadge(); playTurns(turns,cast); return; }
-  playSingle(resolved); }
+    clearStatus(); updateCacheBadge(); playTurns(turns,cast,startIdx); return; }
+  playSingle(resolved,startIdx); }
 
 // ── Moteurs TTS premium : Gemini (défaut) / OpenAI — surlignage par RÉPLIQUE, cache idb, coût €. EL retiré (mandat Quang 15/06). ──
 const TTS_ENGINES={
@@ -3932,7 +3934,7 @@ async function playElevenMulti(turns,startIdx){ const sec=getSecret(); if(!sec){
     if(elevenSub){ const remain=(elevenSub.character_limit||0)-(elevenSub.character_count||0); if(need>remain){ stat("#listenStatus","⚠️ "+t("el.noCredits").replace("{r}",Math.max(0,remain).toLocaleString())); return; } }
   }
   if(!elMultiTurns||!elMultiTurns.length) return;
-  elMultiStop=false; setElPlaying(true); setFollow(true); elPlayFrom(startIdx||0); }
+  elMultiStop=false; setElPlaying(true); setFollow(true); elPlayFrom(Math.max(0,Math.min(startIdx||0,(elMultiTurns.length||1)-1))); }
 let PREGEN_DEADLINE_MS=300000; // deadline de secours pré-génération (5 min, anti-boucle) — surchargeable en test
 // #4b — PRÉ-GÉNÉRATION du chapitre entier (multi-voix) : synthétise TOUS les passages avec barre de progression, SANS lecture.
 async function pregenElevenMulti(turns){ const sec=getSecret(); if(!sec){ requireKey(); return; }
@@ -3996,7 +3998,8 @@ async function pregenElevenMulti(turns){ const sec=getSecret(); if(!sec){ requir
   updatePlayBtn(); scheduleGenLib(); } // badge vert + bouton « Écouter » UNIQUEMENT si tout est réellement en cache
 let elGen=0;
 async function elPlayFrom(i){ const gen=++elGen; const turns=elMultiTurns, cast=elMultiCast; if(!turns) return; const vol=()=>(S.vol!=null?S.vol:100)/100;
-  if(elMultiStop||i>=turns.length){ const done=!elMultiStop&&i>=turns.length; stat("#listenStatus","✓ "+t("el.done")); setElPlaying(false); $$("#listenText .kw.on,#listenText .ntr.active").forEach(s=>s.classList.remove("on","active")); updateCacheBadge(); if(done) autoAdvanceChapter(); return; }
+  if(elMultiStop||i>=turns.length){ const done=!elMultiStop&&i>=turns.length; stat("#listenStatus","✓ "+t("el.done")); setElPlaying(false); $$("#listenText .kw.on,#listenText .ntr.active").forEach(s=>s.classList.remove("on","active")); if(done) clearResume(); updateCacheBadge(); if(done) autoAdvanceChapter(); return; }
+  saveResume(i, turns.length); // signet : on est sur le tour i
   const tn=turns[i], vid=cast[tn.speaker]||cast["narrateur"];
   $$("#listenText .ntr.active").forEach(s=>s.classList.remove("active"));
   setLoading("#listenStatus","🎙️ "+t("el.synth").replace("{n}",(i+1)+"/"+turns.length));
@@ -4028,11 +4031,22 @@ async function playEleven(resolved){
   finally{ $("#listenPlay").disabled=false; }
 }
 
+// ── Reprise de lecture (signet par livre + chapitre, persistant en localStorage) — mandat Quang ──
+// La position = index de tour (multi-voix & navigateur = tour par tour). Le ▶ reprend ; « ⟲ depuis le début » repart de 0.
+let _resumeIdx=0; // index de tour à reprendre, consommé par le prochain listenPlay
+function _resumeKey(){ return (S.listenWhat||"story")+"|"+(($("#listenSource")||{}).value||""); }
+function saveResume(turn,total){ const b=library.find(x=>x.id===state.currentId); if(!b)return; b.listenResume=b.listenResume||{};
+  if(turn>0 && total>1 && turn<total){ b.listenResume[_resumeKey()]={turn,total,ts:Date.now()}; } else { delete b.listenResume[_resumeKey()]; }
+  saveStore(); if(typeof updateMiniPlayer==="function") updateMiniPlayer(); }
+function clearResume(){ const b=library.find(x=>x.id===state.currentId); if(!b||!b.listenResume)return; delete b.listenResume[_resumeKey()]; saveStore(); if(typeof updateMiniPlayer==="function") updateMiniPlayer(); }
+function getResume(){ const b=library.find(x=>x.id===state.currentId); const r=b&&b.listenResume&&b.listenResume[_resumeKey()]; return (r&&r.turn>0)?r:null; }
+
 // ── Orchestration unifiée : ▶︎ Écouter / Pause / Stop ──
 let listenBusy=false;
 async function listenPlay(){ if(listenBusy)return; if(!state.analysis){ toast(t("t.analyzeFirst")); return; }
   const src=sourceText();
   if(!src.text){ toast((S.listenWhat||"story")==="summary"?t("listen.noSummary"):(state.rawChapters&&state.rawChapters.length?t("narr.needScene"):t("narr.noRaw"))); return; }
+  const _startIdx=_resumeIdx||0; _resumeIdx=0; // signet de reprise consommé (0 = depuis le début)
   listenStop(); listenBusy=true; $("#listenPlay").disabled=true;
   try{ let text=src.text;
     if(needsTranslation()){ const _trN=notifPush({icon:"🌐",title:_nfr()?"Traduction du passage…":"Translating…",detail:src.title||"",status:"active"});
@@ -4049,10 +4063,10 @@ async function listenPlay(){ if(listenBusy)return; if(!state.analysis){ toast(t(
           const tn2=turns.map(tn=>({speaker:tn.speaker||"narrateur",text:nrm(tn)})).filter(tn=>tn.text);
           const tcast=elCast([...new Set(tn2.map(t=>t.speaker))]);
           let allCached=tn2.length>0; for(const tn of tn2){ const k=elKey(tcast[tn.speaker]||"",tn.text); if(!elCache.has(k)&&!(await idbGet("audio",k))){ allCached=false; break; } }
-          if(allCached) await playElevenMulti(turns); else await pregenElevenMulti(turns);
+          if(allCached) await playElevenMulti(turns,_startIdx); else await pregenElevenMulti(turns);
         } else await playEleven(resolved);
       } else await playEleven(resolved);
-    } else await playBrowser(resolved);
+    } else await playBrowser(resolved,_startIdx);
   } finally { listenBusy=false; $("#listenPlay").disabled=false; }
 }
 function listenStop(){ narrPlaying=false; elMultiStop=true; if(window.speechSynthesis)speechSynthesis.cancel(); stopEleven(); setElPlaying(false);
@@ -4353,17 +4367,21 @@ function updateMiniPlayer(){ const mp=$("#miniPlayer"); if(!mp)return;
   // pastille d'état : ♪ en lecture · 🟢 prêt · ⚡ à générer (premium sans cache)
   mp.classList.toggle("playing",playing);
   const needGen=isPrem() && state._elNeedsGen && !_listenOn; // « à générer » seulement hors lecture
+  const rsm = (!playing && !_listenOn && !needGen && typeof getResume==="function") ? getResume() : null; // signet de reprise (chapitre déjà entamé)
   const dot=$("#mpDot"); if(dot){ if(playing){ dot.textContent="♪"; dot.style.color="var(--cyan)"; } else if(needGen){ dot.textContent="⚡"; dot.style.color="#ffb454"; } else { dot.textContent="●"; dot.style.color="#46d27a"; } }
-  // bouton principal adaptatif : ⏸ en lecture · ▶ prêt/reprise · ✨ Générer (premium sans audio) — REMPLACE le ▶
+  // bouton principal adaptatif : ⏸ en lecture · ▶ prêt/reprise/reprise-signet · ✨ Générer (premium sans audio) — REMPLACE le ▶
   const pb=$("#mpPlay"); if(pb){ pb.textContent = playing ? "⏸" : (needGen ? "✨" : "▶");
     pb.classList.toggle("mp-gen",needGen);
-    pb.title = playing ? "Pause" : (needGen ? (FR?("Générer la voix · ≈ "+miniGenCost()):("Generate voice · ≈ "+miniGenCost())) : (_listenOn?(FR?"Reprendre":"Resume"):(FR?"Lire":"Play"))); }
+    pb.title = playing ? "Pause" : (needGen ? (FR?("Générer la voix · ≈ "+miniGenCost()):("Generate voice · ≈ "+miniGenCost())) : (_listenOn?(FR?"Reprendre":"Resume"):(rsm?(FR?"Reprendre la lecture":"Resume reading"):(FR?"Lire":"Play")))); }
   const st=$("#mpStop"); if(st) st.style.display=_listenOn?"":"none"; // Stop seulement quand ça joue / en pause
-  // libellé chapitre + position. En « à générer » : on affiche clairement l'action + le coût.
+  const rb=$("#mpRestart"); if(rb) rb.style.display=(expanded && rsm)?"":"none"; // « ⟲ depuis le début » : étendu + signet présent
+  // libellé chapitre + position. « à générer » → action+coût ; signet → « Reprendre X/Y ».
   const src=(typeof sourceText==="function")?sourceText():{}; const cn=(typeof curChapterNum==="function")?curChapterNum():null;
   const title=String(src.title||"").replace(/^Chapitre\s+/i,"Ch. ").trim(); const lbl=$("#mpLabel");
   if(lbl){ const base=title || (cn?("Ch. "+cn):(FR?"Lecture":"Listen"));
-    lbl.textContent = needGen ? ((FR?"À générer ≈ ":"To generate ≈ ")+miniGenCost()+" · "+base) : base; }
+    lbl.textContent = needGen ? ((FR?"À générer ≈ ":"To generate ≈ ")+miniGenCost()+" · "+base)
+                    : rsm ? ((FR?"Reprendre ":"Resume ")+(rsm.turn+1)+"/"+rsm.total+" · "+base)
+                    : base; }
   const pos=$("#mpPos"); if(pos) pos.textContent=(typeof listenChapPosText==="function")?listenChapPosText():"";
   // navigation chapitre (bornes identiques à updateListenNavBtns)
   const chs=state.rawChapters||[], cur=(typeof curListenOrigIdx==="function")?curListenOrigIdx():-1, what=(S.listenWhat||"story");
@@ -4379,7 +4397,9 @@ if($("#mpPlay")) $("#mpPlay").onclick=()=>{ if(isPlaying()||_listenOn){ listenPa
     confirmAction((FR?("Générer l'audio de ce chapitre ? ≈ "+cost):("Generate this chapter's audio? ≈ "+cost)),
       ()=>{ if(typeof listenPlay==="function"){ listenPlay(); setTimeout(updateMiniPlayer,120); } });
     return; }
+  const _r=(typeof getResume==="function")?getResume():null; _resumeIdx=_r?_r.turn:0; // ▶ reprend au signet s'il existe
   listenPlay(); setTimeout(updateMiniPlayer,80); };
+if($("#mpRestart")) $("#mpRestart").onclick=()=>{ if(typeof clearResume==="function")clearResume(); _resumeIdx=0; listenPlay(); setTimeout(updateMiniPlayer,80); }; // « ⟲ depuis le début »
 if($("#mpStop"))  $("#mpStop").onclick=()=>{ listenStop(); };
 // ⛶ = bascule plein-texte : entre depuis n'importe où, et SORT si on y est déjà (le mini remplace #immBar en plein écran)
 if($("#mpGo"))    $("#mpGo").onclick=()=>{ const lt=$("#listenText"); if(lt&&lt.classList.contains("immersive")){ setImmersive(false); } else { show("listen"); setTimeout(()=>{ if($("#listenText")) setImmersive(true); },90); } };
