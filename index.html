@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>StoryVoice — Compagnon de lecture intelligent</title>
-<!-- PWA -->
+<!-- PWA (actif uniquement quand servi en http(s) ; inoffensif en file:// : guard sur le SW + 404 silencieux du manifest) -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#05060f">
 <meta name="description" content="Compagnon de lecture intelligent : résumés, carte vivante des personnages, narration multi-voix et Q&A anti-spoiler.">
@@ -281,8 +281,31 @@
   .toast.show{opacity:1;transform:translateX(-50%)}
   .ver{position:fixed;right:10px;bottom:8px;z-index:40;color:var(--txt-faint);font-size:11px;letter-spacing:.5px;pointer-events:none}
   @media (max-width:640px){
-    header{padding:10px 12px;gap:8px}.logo small{display:none}.tab span.lbl{display:none}.tab{padding:8px 11px}
+    header{padding:8px 12px;gap:6px}.logo small{display:none}.tab span.lbl{display:none}
     .summary-wrap,.read-bar,.map-top{padding-left:14px;padding-right:14px}
+    /* --- Mobile : compactage du header (logo + coût + onglets tiennent en 2 lignes serrées) --- */
+    .hdr-inner{gap:8px !important;row-gap:6px !important}
+    .logo{font-size:16px !important}
+    #hdrCost{font-size:11px !important;padding:4px 9px !important}
+    .tabs{padding:3px !important;gap:3px}
+    .tab{padding:7px 9px !important;font-size:13px}
+    /* --- Mobile : compactage du bandeau « Lecture active » (gain de hauteur) --- */
+    #activeBar{padding:6px 12px !important}
+    #activeBar .bar-inner{flex-wrap:nowrap !important;gap:10px !important}
+    #activeCover{width:34px !important;height:34px !important;border-radius:8px !important}
+    #activeBar .bar-inner > div:nth-child(2){flex:1 1 auto !important;min-width:0}
+    #activeBar .bar-inner .hint{display:none !important}            /* label « Lecture active : » masqué */
+    #activeTitle{font-size:15px !important;line-height:1.25 !important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+    .read-sel{flex:0 0 auto !important;gap:5px !important}
+    .read-sel label{display:none !important}                       /* « J'ai lu jusqu'au : » masqué, le select suffit */
+    .read-sel select{max-width:118px;font-size:12px}
+    /* reader-bar plus compacte + nav Préc/Suiv en chevrons seuls */
+    .reader-bar{gap:6px !important;padding:8px 0 9px !important;margin-bottom:12px !important}
+    #readerPrev span[data-i18n],#readerNext span[data-i18n]{display:none}
+    /* --- Auto-hide du chrome (header + bandeau) pendant la lecture immersive --- */
+    header,#activeBar{transition:max-height .26s ease,padding .26s ease,opacity .18s ease;max-height:340px}
+    header.chrome-hidden{max-height:0 !important;padding-top:0 !important;padding-bottom:0 !important;opacity:0;overflow:hidden;border-bottom:none}
+    #activeBar.chrome-hidden{max-height:0 !important;padding-top:0 !important;padding-bottom:0 !important;opacity:0;overflow:hidden;border-bottom:none}
   }
 </style>
 </head>
@@ -292,7 +315,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v0.92.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v0.93.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -1838,7 +1861,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "0.92.0";
+const VERSION = "0.93.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2029,6 +2052,7 @@ function show(tab){ state.tab=tab;
   if(tab==="read") renderReader();
   if(tab==="listen"){ syncListenUI(); }
   if(typeof tuneAmbiance==="function") tuneAmbiance(); // fond d'ambiance : discret en lecture, plus présent ailleurs
+  if(tab!=="read"){ setChromeHidden(false); } else { _lastScrollY=$("#readView").scrollTop||0; } // chrome auto-hide : actif en lecture seulement
 }
 $("#tabs").addEventListener("click",e=>{ const b=e.target.closest(".tab"); if(b&&!b.disabled) show(b.dataset.view); });
 
@@ -3008,7 +3032,20 @@ if($("#readerLang")) $("#readerLang").onchange=e=>{ S.listenLang=e.target.value;
 $("#readerPrev").onclick=()=>{ if(state.readerIdx>0){ state.readerIdx--; renderReader(); persistReaderPos(); } };
 $("#readerNext").onclick=()=>{ if(state.readerIdx<readerChapters().length-1){ const leaving=state.readerIdx; state.readerIdx++; renderReader(); persistReaderPos(); autoAdvanceRead(leaving); /* progression auto : marque comme lu le chapitre quitté (couvre les chapitres trop courts pour scroller) */ } };
 $("#readerMark").onclick=readerMark;
-$("#readView").addEventListener("scroll",()=>{ if(state.tab==="read"&&state.analysis){ persistReaderPos(); maybeAutoAdvanceScroll(); } });
+// --- Auto-hide du chrome (header + bandeau « Lecture active ») en lecture immersive sur mobile ---
+let _chromeHidden=false, _lastScrollY=0;
+function isMobileView(){ try{ return window.matchMedia("(max-width:640px)").matches; }catch(_){ return innerWidth<=640; } }
+function setChromeHidden(hide){ if(hide===_chromeHidden) return; _chromeHidden=hide;
+  const h=document.querySelector("header"), a=$("#activeBar");
+  if(h) h.classList.toggle("chrome-hidden",hide);
+  if(a && a.style.display!=="none") a.classList.toggle("chrome-hidden",hide); }
+function autoHideChrome(y){
+  if(!isMobileView() || state.tab!=="read"){ setChromeHidden(false); _lastScrollY=y; return; }
+  if(y<48){ setChromeHidden(false); }                              // tout en haut → toujours visible
+  else if(y-_lastScrollY>5){ setChromeHidden(true); }              // scroll vers le bas → masquer
+  else if(_lastScrollY-y>7){ setChromeHidden(false); }             // scroll vers le haut → réafficher
+  _lastScrollY=y; }
+$("#readView").addEventListener("scroll",()=>{ if(state.tab==="read"&&state.analysis){ persistReaderPos(); maybeAutoAdvanceScroll(); } autoHideChrome($("#readView").scrollTop); });
 
 /* ---------------- Recherche plein-texte dans le livre (roadmap #1) ---------------- */
 // fold = minuscule + accents retirés en 1:1 (chaque remplacement = 1 caractère → les offsets restent EXACTS dans le texte d'origine)
@@ -4129,7 +4166,7 @@ loadStore(); PROVIDER=PROVIDERS[S.provider]||PROVIDERS.deepseek; maybeAutoResetB
 // Réouverture auto du dernier ebook ouvert (reprend où l'utilisateur en était : liseuse au chapitre+scroll, ou carte)
 if(S.lastBook){ const _lb=library.find(x=>x.id===S.lastBook); if(_lb&&_lb.analysis){ const _lt=S.lastTab; /* capturé AVANT : openCachedBook force read/map et écrase lastTab */ try{ openCachedBook(_lb); if(_lt&&["read","listen","sum","map","ask"].includes(_lt)) show(_lt); }catch(_){} } }
 if(!getSecret()){ syncSettingsUI(); $("#setOverlay").classList.add("show"); }
-// PWA — enregistrement du service worker (app shell offline ; n'intercepte JAMAIS le gateway, cf sw.js)
+// PWA — enregistrement du service worker (app shell offline ; n'intercepte JAMAIS le gateway, cf sw.js). Guard file:// → no-op en dev local.
 if("serviceWorker" in navigator && location.protocol!=="file:"){ window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(e=>console.warn("[SW] échec enregistrement", e)); }); }
 </script>
 </body>
