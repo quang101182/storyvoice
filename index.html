@@ -278,7 +278,7 @@
   .lg-btn{appearance:none;border:1px solid var(--panel-brd);background:rgba(0,0,0,.3);color:var(--txt-dim);font:inherit;font-size:12px;font-weight:600;padding:5px 11px;border-radius:9px;cursor:pointer;transition:.2s}
   .lg-btn:hover{color:var(--txt);border-color:rgba(120,150,255,.5)}
   .lg-btn.on{background:linear-gradient(135deg,rgba(255,212,121,.25),rgba(154,107,255,.22));color:#fff;border-color:rgba(255,212,121,.4)}
-  .dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 8px currentColor}
+  .dot{width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#fff,currentColor 62%);box-shadow:0 0 11px currentColor,0 0 4px currentColor}
   .node-panel{position:absolute;right:0;top:0;height:100%;width:min(340px,82vw);z-index:6;transform:translateX(100%);transition:.35s cubic-bezier(.4,0,.2,1);
     background:linear-gradient(180deg,#0d1030,#090b22);border-left:1px solid var(--panel-brd);box-shadow:-20px 0 60px rgba(0,0,0,.5);display:flex;flex-direction:column}
   .node-panel.show{transform:none}
@@ -304,6 +304,18 @@
   .fam-empty{color:var(--txt-faint);text-align:center;margin-top:48px;font-size:14px}
   .close-x{margin-left:auto;cursor:pointer;color:var(--txt-faint);font-size:22px;line-height:1;background:none;border:0}
   .close-x:hover{color:#fff}
+  /* Lot B #1 — édition d'entité in-situ dans la fiche */
+  .np-edit{cursor:pointer;background:none;border:0;font-size:15px;line-height:1;padding:2px;opacity:.75;transition:.15s}
+  .np-edit:hover{opacity:1;transform:scale(1.15)}
+  #npEditForm label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--txt-faint);margin:13px 0 4px}
+  #npEditForm input,#npEditForm textarea,#npEditForm select{width:100%;background:rgba(0,0,0,.32);border:1px solid var(--panel-brd);border-radius:9px;color:var(--txt);font:inherit;font-size:14px;padding:8px 10px}
+  #npEditForm textarea{min-height:72px;resize:vertical;font-family:var(--serif);line-height:1.5}
+  .np-seg{display:flex;gap:6px}
+  .np-seg button{flex:1;min-width:0;appearance:none;border:1px solid var(--panel-brd);background:rgba(0,0,0,.3);color:var(--txt-dim);font:inherit;font-size:12px;font-weight:600;padding:7px 5px;border-radius:9px;cursor:pointer;transition:.15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .np-seg button.on{background:linear-gradient(135deg,rgba(110,120,220,.4),rgba(60,70,160,.28));color:#fff;border-color:rgba(120,150,255,.5)}
+  .np-actions{display:flex;gap:8px;margin-top:16px}
+  .np-actions .btn{flex:1}
+  .np-del{color:#ff8585!important;border-color:rgba(255,133,133,.4)!important}
 
   .listen-wrap{max-width:720px;margin:0 auto;padding:30px 24px}
   .voice-card{background:var(--panel);border:1px solid var(--panel-brd);border-radius:16px;padding:22px;margin-top:16px;backdrop-filter:blur(10px)}
@@ -382,7 +394,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.7.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.8.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -506,11 +518,15 @@
         <span class="lg"><span class="dot" style="color:#ffd479"></span><span data-i18n="leg.house">Maison/Groupe</span></span>
         <button class="lg-btn" id="btnMainOnly">★ <span data-i18n="leg.mainOnly">Principaux</span></button>
         <button class="lg-btn" id="btnTree">🌳 <span data-i18n="leg.tree">Arbre</span></button>
+        <button class="lg-btn" id="btnAddEntity" title="Ajouter une entité" data-i18n-title="ent.addTitle"><span data-i18n="ent.add">＋ Ajouter</span></button>
         <span class="lg" style="color:var(--txt-faint)" id="legHint" data-i18n="leg.hint">Glissez = pivoter · molette = zoom · clic = fiche</span>
       </div>
       <aside class="node-panel" id="nodePanel">
-        <div class="ph"><div style="display:flex;align-items:center"><h3 id="npName"></h3><button class="close-x" id="npClose">×</button></div><div class="alias" id="npAlias"></div></div>
-        <div class="pb"><div class="note" id="npNote"></div><div id="npRels"></div></div>
+        <div class="ph"><div style="display:flex;align-items:center;gap:8px"><h3 id="npName"></h3><button class="np-edit" id="npEdit" title="Modifier" data-i18n-title="ent.edit">✏️</button><button class="close-x" id="npClose">×</button></div><div class="alias" id="npAlias"></div></div>
+        <div class="pb">
+          <div id="npView"><div class="note" id="npNote"></div><div id="npRels"></div></div>
+          <div id="npEditForm" style="display:none"></div>
+        </div>
       </aside>
     </section>
     <section class="view" id="listenView">
@@ -1965,7 +1981,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.7.0";
+const VERSION = "1.8.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2004,6 +2020,7 @@ const I18N = {
   "sum.global":"Résumé global","sum.byChapter":"Par chapitre","sum.chapter":"Chapitre","sum.locked":"🔒 lecture plus loin","sum.lockedMsg":"Avancez votre position de lecture pour révéler ce résumé.","sum.renameHint":"Cliquez pour renommer le livre","sum.renamed":"Titre mis à jour ✓","sum.copy":"📋 Copier","sum.export":"⬇️ Exporter","sum.copied":"Résumés copiés ✓","sum.exported":"Résumés exportés ✓",
   "leg.person":"Personnage","leg.place":"Lieu","leg.house":"Maison/Groupe","leg.mainOnly":"Principaux","leg.hint":"Glissez = pivoter · molette = zoom · clic = fiche","leg.tree":"Arbre","leg.constellation":"Constellation","leg.treeHint":"Arbre généalogique (liens familiaux révélés) · clic = fiche","fam.empty":"Aucun lien familial révélé à cette position de lecture.",
   "np.links":"Liens connus","np.noLink":"Aucun lien révélé à cette position.","np.goto":"Voir cette fiche","narr.colorSpeakers":"🎨 Une couleur par personnage",
+  "ent.add":"＋ Ajouter","ent.addTitle":"Ajouter une entité (personnage, lieu, groupe)","ent.edit":"Modifier cette entité",
   "listen.title":"Mode écoute","listen.sub":"Projetez-vous dans l'histoire sans lire vous-même.","listen.avail":"Disponible",
   "listen.whatLabel":"🎧 Quoi écouter","listen.whatStory":"Histoire","listen.whatSummary":"Résumé","listen.sumGlobal":"Résumé global","listen.langLabel":"🌐 Langue d'écoute","listen.langOrig":"Originale","listen.engineLabel":"🔊 Voix","listen.engBrowser":"Local","listen.engEleven":"Premium","listen.play":"▶︎ Écouter","listen.translating":"🌐 Traduction en cours…","listen.willTranslate":"Sera traduit en {l} au lancement.","listen.transOn":"🌐 traduit à la volée","listen.empty":"Choisissez quoi écouter ci-dessus, puis ▶︎ Écouter.","listen.noSummary":"Aucun résumé disponible à ce stade.","listen.cachedAudio":"audio en cache · gratuit","listen.cachedSeg":"voix déjà attribuées · instantané","listen.immersive":"Plein texte","listen.immReduce":"Réduire","listen.instant":"navigateur · instantané & gratuit","listen.toGen":"voix à attribuer (1 analyse)","listen.focus":"Revenir au focus","listen.advTitle":"⚙ Réglages voix","el.speed":"⏩ Vitesse","listen.gen":"✨ Générer la voix","listen.restart":"↻ Recommencer",
   "listen.ttsTitle":"Lecture vocale du résumé","listen.ttsDesc":"Synthèse vocale du navigateur (gratuite, immédiate).","listen.speak":"▶︎ Lire le résumé courant","listen.stop":"■ Stop","listen.volume":"🔊 Volume","el.voice":"🗣️ Voix premium","el.synth":"Synthèse de {n} caractères…","el.trunc":"(scène tronquée à 2500 caractères)","el.playing":"Lecture en cours…","el.playingCached":"Lecture (depuis le cache, gratuit)","el.paused":"En pause","el.done":"Terminé","el.err":"Échec de la synthèse premium.","el.noCredits":"Crédits insuffisants ({r} restants ce mois).",
@@ -2055,6 +2072,7 @@ const I18N = {
   "sum.global":"Overall summary","sum.byChapter":"By chapter","sum.chapter":"Chapter","sum.locked":"🔒 read further","sum.lockedMsg":"Move your reading position forward to reveal this summary.","sum.renameHint":"Click to rename the book","sum.renamed":"Title updated ✓","sum.copy":"📋 Copy","sum.export":"⬇️ Export","sum.copied":"Summaries copied ✓","sum.exported":"Summaries exported ✓",
   "leg.person":"Character","leg.place":"Place","leg.house":"House/Group","leg.mainOnly":"Main only","leg.hint":"Drag = rotate · wheel = zoom · click = card","leg.tree":"Tree","leg.constellation":"Constellation","leg.treeHint":"Family tree (revealed family links) · click = card","fam.empty":"No family link revealed at this reading position.",
   "np.links":"Known links","np.noLink":"No link revealed at this position.","np.goto":"Open this card","narr.colorSpeakers":"🎨 One color per character",
+  "ent.add":"＋ Add","ent.addTitle":"Add an entity (character, place, group)","ent.edit":"Edit this entity",
   "listen.title":"Listen mode","listen.sub":"Immerse yourself in the story without reading it yourself.","listen.avail":"Available",
   "listen.whatLabel":"🎧 What to listen to","listen.whatStory":"Story","listen.whatSummary":"Summary","listen.sumGlobal":"Global summary","listen.langLabel":"🌐 Listening language","listen.langOrig":"Original","listen.engineLabel":"🔊 Voice","listen.engBrowser":"Local","listen.engEleven":"Premium","listen.play":"▶︎ Listen","listen.translating":"🌐 Translating…","listen.willTranslate":"Will be translated to {l} on play.","listen.transOn":"🌐 translated on the fly","listen.empty":"Choose what to listen to above, then ▶︎ Listen.","listen.noSummary":"No summary available yet.","listen.cachedAudio":"audio cached · free","listen.cachedSeg":"voices already assigned · instant","listen.immersive":"Full text","listen.immReduce":"Reduce","listen.instant":"browser · instant & free","listen.toGen":"voices to assign (1 analysis)","listen.focus":"Back to focus","listen.advTitle":"⚙ Voice settings","el.speed":"⏩ Speed","listen.gen":"✨ Generate voice","listen.restart":"↻ Restart",
   "listen.ttsTitle":"Read the summary aloud","listen.ttsDesc":"Browser speech synthesis (free, instant).","listen.speak":"▶︎ Read current summary","listen.stop":"■ Stop","listen.volume":"🔊 Volume","el.voice":"🗣️ Premium voice","el.synth":"Synthesizing {n} characters…","el.trunc":"(scene truncated to 2500 characters)","el.playing":"Playing…","el.playingCached":"Playing (from cache, free)","el.paused":"Paused","el.done":"Done","el.err":"Premium synthesis failed.","el.noCredits":"Not enough credits ({r} left this month).",
@@ -3083,6 +3101,8 @@ function openNode(n){ state.selected=n; const a=state.analysis;
     return `<div class="rel-item"><span class="arr">${r.from===n.id?"→":"←"}</span><b>${esc(r.type||"")}</b> <a class="rel-go" data-goto="${esc(otherId)}" title="${esc(t("np.goto"))}">${esc(idName(otherId))}</a></div>`; }).join("") : `<div class="hint">${t("np.noLink")}</div>`;
   $("#npRels").innerHTML=`<div class="rel-h">${t("np.links")}</div>`+body;
   const pb=$("#nodePanel").querySelector(".pb"); if(pb) pb.scrollTop=0;
+  // reset UI d'édition → mode lecture (vue) à chaque ouverture
+  const _ef=$("#npEditForm"); if(_ef) _ef.style.display="none"; const _vw=$("#npView"); if(_vw) _vw.style.display="block"; const _ed=$("#npEdit"); if(_ed) _ed.style.display="";
   $("#nodePanel").classList.add("show");
 }
 // #1 : cliquer un lien connu navigue vers la fiche de l'entité liée (au lieu de viser la bulle en 3D)
@@ -3090,6 +3110,75 @@ $("#npRels").addEventListener("click",e=>{ const a2=e.target.closest("[data-goto
 function closeNode(){ state.selected=null; $("#nodePanel").classList.remove("show"); }
 $("#npClose").onclick=closeNode;
 $("#btnMainOnly").onclick=()=>{ state.mainOnly=!state.mainOnly; $("#btnMainOnly").classList.toggle("on",state.mainOnly); if(state.selected&&!state.selected.main) closeNode(); };
+
+/* ── Lot B #1 — Correction manuelle des entités : édition IN-SITU dans la fiche (Option A, mandat Quang 16/06) ──
+   Mutation EN PLACE de state.analysis.entities/relations + G.nodes/G.edges (positions préservées, PAS de buildGraph complet). */
+function _entFR(){ return (S.uiLang||"fr")!=="en"; }
+function entById(id){ return ((state.analysis&&state.analysis.entities)||[]).find(e=>e.id===id); }
+function _newEntId(){ const ids=new Set(((state.analysis&&state.analysis.entities)||[]).map(e=>e.id)); let n=1; while(ids.has("e_m"+n)) n++; return "e_m"+n; }
+function persistEntities(){ if(typeof persistCurrent==="function") persistCurrent(); try{ updateCastVisibility&&updateCastVisibility(); }catch(_){} }
+function rebuildEdges(){ const byId={}; (G.nodes||[]).forEach(n=>byId[n.id]=n);
+  G.edges=((state.analysis&&state.analysis.relations)||[]).filter(r=>byId[r.from]&&byId[r.to]).map(r=>({...r,a:byId[r.from],b:byId[r.to]})); }
+function recomputeMain(){ const a=state.analysis; if(!a)return; const hasImp=a.entities.some(e=>e.importance);
+  (G.nodes||[]).forEach(n=>{ const e=entById(n.id); if(!e)return; n.main=hasImp?((e.importance||"").toLowerCase().indexOf("main")===0||(e.importance||"").toLowerCase().indexOf("princ")===0):true; }); }
+let _entEditState=null;
+function buildEntityForm(ent,isNew){ const FR=_entFR();
+  _entEditState={ id:ent.id, isNew:!!isNew, type:(ent.type||"person"), importance:((ent.importance||"").toLowerCase().indexOf("princ")===0||(ent.importance||"").toLowerCase().indexOf("main")===0)?"main":"secondary" };
+  const others=((state.analysis&&state.analysis.entities)||[]).filter(e=>e.id!==ent.id && (e.reveal_pct||0)<=state.readPct);
+  const tBtn=(v,lbl)=>`<button type="button" data-tval="${v}" class="${_entEditState.type===v?'on':''}">${lbl}</button>`;
+  const iBtn=(v,lbl)=>`<button type="button" data-ival="${v}" class="${_entEditState.importance===v?'on':''}">${lbl}</button>`;
+  const mergeBlock=others.length?(`<label>${FR?'🔀 Fusionner avec':'🔀 Merge into'}</label><div style="display:flex;gap:8px"><select id="npMergeSel"><option value="">${FR?'— choisir —':'— choose —'}</option>${others.map(e=>`<option value="${esc(e.id)}">${esc(e.name||e.id)}</option>`).join('')}</select><button type="button" class="btn ghost" id="npMergeBtn" style="flex:0 0 auto;white-space:nowrap">${FR?'Fusionner':'Merge'}</button></div>`):"";
+  $("#npEditForm").innerHTML=
+     `<label>${FR?'Nom':'Name'}</label><input id="npfName" value="${esc(ent.name||'')}" placeholder="${FR?'Nom du personnage…':'Character name…'}">`
+    +`<label>${FR?'Aussi appelé (alias)':'Also known as'}</label><input id="npfAlias" value="${esc(ent.known_as||'')}" placeholder="${FR?'séparés par des virgules':'comma-separated'}">`
+    +`<label>${FR?'Type':'Type'}</label><div class="np-seg" id="npfType">${tBtn('person',FR?'👤 Perso':'👤 Char.')}${tBtn('place',FR?'📍 Lieu':'📍 Place')}${tBtn('house',FR?'🏛 Groupe':'🏛 Group')}</div>`
+    +`<label>${FR?'Importance':'Importance'}</label><div class="np-seg" id="npfImp">${iBtn('main',FR?'★ Principal':'★ Main')}${iBtn('secondary',FR?'Secondaire':'Secondary')}</div>`
+    +`<label>${FR?'Note (qui est-ce ?)':'Note (who is this?)'}</label><textarea id="npfNote" placeholder="${FR?'rôle, description…':'role, description…'}">${esc(ent.note||'')}</textarea>`
+    +(isNew?'':mergeBlock)
+    +`<div class="np-actions">`+(isNew?'':`<button type="button" class="btn ghost np-del" id="npfDel">${FR?'🗑 Supprimer':'🗑 Delete'}</button>`)+`<button type="button" class="btn primary" id="npfSave">${isNew?(FR?'✓ Créer':'✓ Create'):(FR?'✓ Enregistrer':'✓ Save')}</button></div>`
+    +`<button type="button" class="btn ghost" id="npfCancel" style="width:100%;margin-top:8px">${FR?'Annuler':'Cancel'}</button>`;
+  $("#npfType").querySelectorAll('button').forEach(b=>b.onclick=()=>{ _entEditState.type=b.dataset.tval; $("#npfType").querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); });
+  $("#npfImp").querySelectorAll('button').forEach(b=>b.onclick=()=>{ _entEditState.importance=b.dataset.ival; $("#npfImp").querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); });
+  $("#npfSave").onclick=saveEntityForm;
+  $("#npfCancel").onclick=()=>{ if(_entEditState&&_entEditState.isNew) closeNode(); else exitNodeEdit(); };
+  const del=$("#npfDel"); if(del) del.onclick=()=>deleteEntity(_entEditState.id);
+  const mb=$("#npMergeBtn"); if(mb) mb.onclick=()=>{ const tid=($("#npMergeSel")||{}).value; if(tid) mergeEntity(_entEditState.id,tid); else toast(FR?"Choisissez une entité cible":"Pick a target entity"); };
+}
+function enterNodeEdit(){ if(!state.selected) return; const e=entById(state.selected.id)||state.selected; buildEntityForm(e,false); $("#npView").style.display="none"; $("#npEditForm").style.display="block"; const pb=$("#nodePanel").querySelector(".pb"); if(pb)pb.scrollTop=0; }
+function exitNodeEdit(){ $("#npEditForm").style.display="none"; $("#npView").style.display="block"; }
+function saveEntityForm(){ const FR=_entFR(); const st=_entEditState; if(!st)return;
+  const name=(($("#npfName")||{}).value||"").trim(); if(!name){ toast(FR?"Le nom est requis":"Name is required"); return; }
+  const alias=(($("#npfAlias")||{}).value||"").trim(), note=(($("#npfNote")||{}).value||"").trim(), imp=(st.importance==="main")?"main":"secondary";
+  if(st.isNew){ const ent={ id:_newEntId(), name, known_as:alias, type:st.type, importance:imp, note, reveal_pct:Math.min(100,state.readPct) };
+    state.analysis.entities.push(ent);
+    const n={...ent,main:imp==="main",x:(Math.random()-.5)*180,y:(Math.random()-.5)*180,z:(Math.random()-.5)*180,vx:0,vy:0,vz:0,ignite:0}; (G.nodes=G.nodes||[]).push(n);
+    recomputeMain(); persistEntities(); toast(FR?"Entité ajoutée ✓":"Entity added ✓"); openNode(n); return; }
+  const e=entById(st.id); if(!e){ exitNodeEdit(); return; }
+  e.name=name; e.known_as=alias; e.type=st.type; e.importance=imp; e.note=note;
+  const n=(G.nodes||[]).find(x=>x.id===st.id); if(n){ n.name=name; n.known_as=alias; n.type=st.type; n.importance=imp; n.note=note; }
+  recomputeMain(); persistEntities(); toast(FR?"Modifié ✓":"Saved ✓"); if(n) state.selected=n; exitNodeEdit(); openNode(state.selected);
+}
+function deleteEntity(id){ const FR=_entFR(); const e=entById(id); if(!e)return;
+  confirmAction((FR?"Supprimer « ":"Delete “")+(e.name||id)+(FR?" » et ses liens ?":"” and its links?"), ()=>{
+    const a=state.analysis; a.entities=a.entities.filter(x=>x.id!==id); a.relations=(a.relations||[]).filter(r=>r.from!==id&&r.to!==id);
+    G.nodes=(G.nodes||[]).filter(n=>n.id!==id); rebuildEdges(); recomputeMain(); persistEntities(); closeNode(); toast(FR?"Entité supprimée ✓":"Entity deleted ✓"); }); }
+function mergeEntity(srcId,dstId){ const FR=_entFR(); if(srcId===dstId)return; const a=state.analysis; const src=entById(srcId), dst=entById(dstId); if(!src||!dst)return;
+  confirmAction((FR?"Fusionner « ":"Merge “")+(src.name||srcId)+(FR?" » dans « ":"” into “")+(dst.name||dstId)+(FR?" » ? L'entité « ":"”? Entity “")+(src.name||srcId)+(FR?" » disparaît.":"” will disappear."), ()=>{
+    const al=new Set(); (dst.known_as||"").split(/[,;]/).forEach(s=>{s=s.trim(); if(s)al.add(s);}); if(src.name)al.add(src.name.trim()); (src.known_as||"").split(/[,;]/).forEach(s=>{s=s.trim(); if(s)al.add(s);});
+    al.delete((dst.name||"").trim()); dst.known_as=[...al].filter(Boolean).join(", ");
+    dst.reveal_pct=Math.min(dst.reveal_pct||0, src.reveal_pct||0); if(!dst.note&&src.note) dst.note=src.note;
+    const seen=new Set(), rels=[];
+    (a.relations||[]).forEach(r=>{ const from=r.from===srcId?dstId:r.from, to=r.to===srcId?dstId:r.to; if(from===to)return; const k=from+"|"+to+"|"+(r.type||""); if(seen.has(k))return; seen.add(k); rels.push({...r,from,to}); });
+    a.relations=rels; a.entities=a.entities.filter(x=>x.id!==srcId);
+    G.nodes=(G.nodes||[]).filter(n=>n.id!==srcId); rebuildEdges(); recomputeMain(); persistEntities();
+    const dn=(G.nodes||[]).find(n=>n.id===dstId); toast(FR?"Fusion effectuée ✓":"Merged ✓"); if(dn){ state.selected=dn; exitNodeEdit(); openNode(dn); } else closeNode(); }); }
+function addEntityStart(){ const FR=_entFR(); if(!state.analysis){ toast(FR?"Analysez d'abord un livre":"Analyze a book first"); return; }
+  state.selected=null; $("#npName").textContent=FR?"Nouvelle entité":"New entity"; $("#npAlias").textContent="";
+  buildEntityForm({id:"__new__",name:"",known_as:"",type:"person",importance:"main",note:""},true);
+  $("#npView").style.display="none"; $("#npEditForm").style.display="block"; const _ed=$("#npEdit"); if(_ed)_ed.style.display="none";
+  $("#nodePanel").classList.add("show"); const pb=$("#nodePanel").querySelector(".pb"); if(pb)pb.scrollTop=0; setTimeout(()=>{ const f=$("#npfName"); if(f)f.focus(); },60); }
+if($("#npEdit")) $("#npEdit").onclick=enterNodeEdit;
+if($("#btnAddEntity")) $("#btnAddEntity").onclick=addEntityStart;
 
 /* #2 — Vue ARBRE GÉNÉALOGIQUE (toggle constellation↔arbre). Orientation validée sur GoT :
    le `type` décrit le rôle de `from` envers `to` → père/mère: from=parent, fils/fille: from=enfant ; mari/femme: horizontal. */
