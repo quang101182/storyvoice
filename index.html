@@ -295,6 +295,17 @@
   .notif-item.active .ni-t{color:var(--cyan)} .notif-item.error .ni-t{color:#ff8da8} .notif-item.done .ni-ic{filter:saturate(1.2)}
   .ni-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:6px;overflow:hidden} .ni-bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#46e0ff,#9a6bff);transition:width .3s}
   .notif-empty{text-align:center;color:var(--txt-faint);font-size:12px;padding:22px 10px}
+  /* --- Bandeau de notification dynamique (pleine largeur) --- */
+  #notifBanner{display:flex;align-items:center;gap:10px;padding:7px 16px;background:linear-gradient(90deg,rgba(70,224,255,.10),rgba(154,107,255,.07));border-bottom:1px solid var(--panel-brd);cursor:pointer;font-size:12.5px;animation:nbslide .25s ease}
+  @keyframes nbslide{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  #notifBanner.nb-active{background:linear-gradient(90deg,rgba(70,224,255,.15),rgba(154,107,255,.10))}
+  #notifBanner.nb-error{background:linear-gradient(90deg,rgba(255,119,200,.13),rgba(255,119,200,.05))}
+  #notifBanner .nb-ic{font-size:15px;flex:0 0 auto}
+  #notifBanner .nb-txt{flex:1;min-width:0;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #notifBanner .nb-bar{flex:0 0 84px;height:5px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden}
+  #notifBanner .nb-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#46e0ff,#9a6bff);border-radius:3px;transition:width .3s}
+  #notifBanner .nb-x{appearance:none;border:0;background:none;color:var(--txt-faint);font-size:19px;cursor:pointer;line-height:1;flex:0 0 auto;padding:0 2px}
+  #notifBanner .nb-x:hover{color:var(--txt)}
   .badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.4px;padding:3px 9px;border-radius:20px;text-transform:uppercase}
   .badge.soon{background:rgba(255,212,121,.15);color:var(--gold);border:1px solid rgba(255,212,121,.35)}
   .badge.live{background:rgba(93,255,176,.13);color:var(--green);border:1px solid rgba(93,255,176,.3)}
@@ -338,7 +349,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.1.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.2.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -362,6 +373,13 @@
     </div>
     </div>
   </header>
+  <!-- Bandeau de notification DYNAMIQUE : affiche l'événement en cours/récent en largeur, sans clic ; clic → historique de session -->
+  <div id="notifBanner" style="display:none">
+    <span id="nbIc" class="nb-ic">•</span>
+    <span id="nbTxt" class="nb-txt"></span>
+    <div id="nbBar" class="nb-bar" style="display:none"><i></i></div>
+    <button id="nbClose" class="nb-x" title="Masquer">×</button>
+  </div>
   <div id="activeBar" style="display:none;padding:12px 20px;border-bottom:1px solid var(--panel-brd);background:linear-gradient(180deg,rgba(93,255,176,.08),transparent)">
     <div class="bar-inner">
       <div id="activeCover" style="display:none;width:56px;height:56px;border-radius:11px;background-size:cover;background-position:center;flex:0 0 auto;box-shadow:0 2px 12px rgba(0,0,0,.55);border:1px solid var(--panel-brd);cursor:pointer;position:relative;align-self:center;transition:transform .15s"><span id="activeCoverOv" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px;border-radius:11px"></span></div>
@@ -1896,7 +1914,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2083,7 +2101,7 @@ function notifTimeAgo(ts){ const s=Math.max(0,Math.round((Date.now()-ts)/1000)),
   if(s<10) return FR?"à l'instant":"just now"; if(s<60) return FR?("il y a "+s+" s"):(s+"s ago");
   const m=Math.round(s/60); if(m<60) return FR?("il y a "+m+" min"):(m+"m ago"); const h=Math.round(m/60); if(h<24) return FR?("il y a "+h+" h"):(h+"h ago"); return FR?("il y a "+Math.round(h/24)+" j"):(Math.round(h/24)+"d ago"); }
 function notifPush(o){ const ev={ id:++_notifId, icon:o.icon||"•", title:o.title||"", detail:o.detail||"", status:o.status||"info", progress:o.progress||null, ts:Date.now() };
-  notifs.unshift(ev); if(notifs.length>40) notifs.length=40; renderNotif(); return ev.id; }
+  notifs.unshift(ev); if(notifs.length>25) notifs.length=25; renderNotif(); return ev.id; }
 function notifSet(id,patch){ if(!id)return; const ev=notifs.find(n=>n.id===id); if(!ev)return; Object.assign(ev,patch); ev.ts=Date.now(); renderNotif(); }
 function notifActiveCount(){ return notifs.filter(n=>n.status==="active").length; }
 function renderNotif(){ const dot=$("#notifDot"), btn=$("#btnNotif"); if(!dot||!btn)return;
@@ -2091,7 +2109,8 @@ function renderNotif(){ const dot=$("#notifDot"), btn=$("#btnNotif"); if(!dot||!
   if(active>0){ dot.style.display=""; dot.textContent=active; btn.classList.add("active"); }
   else if(unseen>0){ dot.style.display=""; dot.textContent=unseen>9?"9+":String(unseen); btn.classList.remove("active"); }
   else { dot.style.display="none"; btn.classList.remove("active"); }
-  const panel=$("#notifPanel"); if(panel && panel.style.display!=="none") paintNotifPanel(); }
+  const panel=$("#notifPanel"); if(panel && panel.style.display!=="none") paintNotifPanel();
+  updateNotifBanner(); }
 function _notifItemHtml(n){ const cls=n.status==="active"?"active":n.status==="error"?"error":n.status==="done"?"done":"";
   const pr=n.progress, bar=(n.status==="active"&&pr)?`<div class="ni-bar"><i style="width:${Math.round(100*(pr.cur||0)/Math.max(1,pr.total||1))}%"></i></div>`:"";
   return `<div class="notif-item ${cls}"><div class="ni-ic">${n.icon}</div><div class="ni-bd"><div class="ni-t">${esc(n.title)}</div>${n.detail?`<div class="ni-d">${esc(n.detail)}</div>`:""}${bar}<div class="ni-ago">${esc(notifTimeAgo(n.ts))}</div></div></div>`; }
@@ -2107,8 +2126,24 @@ function openNotif(){ const p=$("#notifPanel"), b=$("#btnNotif"); if(!p)return;
   p.style.display="block"; notifSeen=notifs.length; paintNotifPanel(); renderNotif(); }
 function closeNotif(){ const p=$("#notifPanel"); if(p) p.style.display="none"; }
 if($("#btnNotif")) $("#btnNotif").onclick=e=>{ e.stopPropagation(); const p=$("#notifPanel"); (p&&p.style.display==="none")?openNotif():closeNotif(); };
-document.addEventListener("click",e=>{ const p=$("#notifPanel"); if(p&&p.style.display!=="none"&&!e.target.closest("#notifPanel")&&!e.target.closest("#btnNotif")) closeNotif(); });
+document.addEventListener("click",e=>{ const p=$("#notifPanel"); if(p&&p.style.display!=="none"&&!e.target.closest("#notifPanel")&&!e.target.closest("#btnNotif")&&!e.target.closest("#notifBanner")) closeNotif(); });
 setInterval(()=>{ const p=$("#notifPanel"); if(p&&p.style.display!=="none") paintNotifPanel(); },20000);
+// Bandeau dynamique : événement ACTIF en continu (avec barre) ou dernier événement récent (auto-masqué ~6s)
+let _bannerTimer=null, _bannerDismissed=0;
+function updateNotifBanner(){ const b=$("#notifBanner"); if(!b)return;
+  const active=notifs.find(n=>n.status==="active");
+  let ev=(active && active.id!==_bannerDismissed)?active:null;
+  if(!ev){ const last=notifs[0]; if(last && last.id!==_bannerDismissed && (Date.now()-last.ts)<6500) ev=last; }
+  if(!ev){ b.style.display="none"; return; }
+  const ic=$("#nbIc"); if(ic) ic.textContent=ev.icon;
+  const tx=$("#nbTxt"); if(tx) tx.textContent=ev.title+(ev.detail?(" — "+ev.detail):"");
+  const bar=$("#nbBar"); if(bar){ if(ev.status==="active"&&ev.progress){ bar.style.display="block"; const i=bar.querySelector("i"); if(i) i.style.width=Math.round(100*(ev.progress.cur||0)/Math.max(1,ev.progress.total||1))+"%"; } else bar.style.display="none"; }
+  b.classList.toggle("nb-active",ev.status==="active"); b.classList.toggle("nb-error",ev.status==="error");
+  b.style.display="flex"; b.dataset.evid=ev.id;
+  clearTimeout(_bannerTimer);
+  if(ev.status!=="active"){ const eid=ev.id; _bannerTimer=setTimeout(()=>{ _bannerDismissed=eid; updateNotifBanner(); },6000); } }
+if($("#notifBanner")) $("#notifBanner").onclick=e=>{ if(e.target.closest("#nbClose")) return; openNotif(); };
+if($("#nbClose")) $("#nbClose").onclick=e=>{ e.stopPropagation(); const b=$("#notifBanner"); _bannerDismissed=+(b.dataset.evid||0); updateNotifBanner(); };
 
 function show(tab){ state.tab=tab;
   if(["read","listen","sum","map","ask"].includes(tab) && S.lastTab!==tab){ S.lastTab=tab; if(S.persist) saveStore(); } // mémorise le dernier onglet (restauré au lancement)
