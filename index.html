@@ -445,6 +445,25 @@
     .ask-wrap > div:first-child p.hint{display:none !important}   /* sous-titre d'amorçage masqué sur mobile */
     #askLog{min-height:40vh}                                       /* garantit une vraie zone de réponse même chrome affiché */
   }
+/* ===== Mode découverte (démo) ===== */
+.demo-bar{display:none;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;background:linear-gradient(90deg,rgba(20,26,40,.98),rgba(26,34,54,.98));border-bottom:1px solid var(--panel-brd);padding:8px 14px;font-size:12.5px}
+.demo-bar.show{display:flex}
+.demo-bar .db-tag{background:var(--cyan);color:#001b22;font-weight:800;border-radius:8px;padding:2px 9px;font-size:11px;letter-spacing:.5px;flex:0 0 auto}
+.demo-bar .db-txt{color:var(--txt)}
+.demo-bar .db-cta{background:var(--cyan);color:#001b22;border:0;border-radius:10px;padding:6px 13px;font:inherit;font-weight:700;cursor:pointer;flex:0 0 auto}
+.demo-bar .db-cta:hover{filter:brightness(1.09)}
+.demo-bar .db-lang{display:inline-flex;gap:4px;margin-left:2px;flex:0 0 auto}
+.demo-bar .db-lang button{background:rgba(255,255,255,.07);color:var(--txt-dim);border:1px solid var(--panel-brd);border-radius:7px;padding:3px 9px;font:inherit;font-size:11px;cursor:pointer}
+.demo-bar .db-lang button.on{background:var(--cyan);color:#001b22;font-weight:700;border-color:var(--cyan)}
+.demo-coach{position:fixed;left:50%;transform:translateX(-50%) translateY(14px);bottom:calc(var(--mini-space,90px) + 8px);z-index:60;max-width:min(92vw,560px);background:linear-gradient(135deg,rgba(13,148,180,.97),rgba(40,90,170,.97));color:#fff;padding:11px 16px;border-radius:14px;font-size:13.5px;line-height:1.45;box-shadow:0 10px 34px rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;text-align:center}
+.demo-coach.show{opacity:1;transform:translateX(-50%) translateY(0);animation:coachPulse 1.9s ease-in-out infinite}
+.demo-coach b{color:#fff;font-weight:800}
+@keyframes coachPulse{0%,100%{box-shadow:0 10px 30px rgba(0,0,0,.45)}50%{box-shadow:0 12px 38px rgba(13,148,180,.75)}}
+.ul-sep{margin:18px 0 10px;text-align:center;color:var(--txt-faint);font-size:12px;text-transform:uppercase;letter-spacing:.5px;border-top:1px solid var(--panel-brd);padding-top:14px}
+#unlockOverlay code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:5px;font-size:12px}
+/* Visiteur sans clé : la démo devient le CTA principal de l'accueil */
+body.nokey #btnDemo{display:inline-block;margin-top:14px;background:linear-gradient(135deg,var(--cyan),#3a7bd5);color:#001b22;font-weight:700;font-size:15px;border-radius:13px;padding:13px 22px;text-decoration:none;box-shadow:0 6px 22px rgba(13,148,180,.4)}
+body.nokey #btnDemo:hover{filter:brightness(1.08)}
 </style>
 </head>
 <body>
@@ -453,7 +472,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.22.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.23.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -788,6 +807,11 @@
           <button class="btn primary" id="keySave" data-i18n="set.keySave">Enregistrer</button>
           <button class="btn ghost" id="keyClear" data-i18n="set.keyClear">Effacer</button>
         </div>
+        <span class="sub" data-i18n-html="set.keyBuy" style="display:block;margin-top:8px">Vous avez acheté des crédits ? Collez ici le <b>code</b> (commence par <code>sv_</code>) reçu par email.</span>
+      </div>
+      <div class="set-row">
+        <label data-i18n="set.contact">✉️ Une question ?</label>
+        <span class="sub" data-i18n-html="set.contactSub">Écrivez-nous à <a href="mailto:quangapps.dev@gmail.com" style="color:var(--cyan)">quangapps.dev@gmail.com</a> — bug, suggestion ou demande.</span>
       </div>
       <div class="set-row">
         <label data-i18n="set.uiLang">🌐 Langue de l'interface</label>
@@ -2055,7 +2079,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.22.0";
+const VERSION = "1.23.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2086,6 +2110,95 @@ function svHoursTxt(c,FR){ const h=(c||0)/SV_CPH; if(h>=1){ const H=Math.floor(h
 function fmtCredits(c){ return Number(c||0).toLocaleString("fr-FR"); }
 // (recharge gérée par les boutons de packs SV_PACKS dans renderSvCredits → svBuy(url))
 function svCreditsEmptyNotice(sel){ const FR=(S.uiLang||"fr")!=="en"; const m=FR?"⚡ Crédits épuisés — rechargez pour continuer la narration vocale.":"⚡ Out of credits — top up to continue voice narration."; if(sel){ try{ stat(sel,m); }catch(_){} } try{ toast(m); }catch(_){} try{ renderHdrCost(); }catch(_){} }
+
+/* ============================================================================
+   MODE DÉCOUVERTE — démo Sherlock pré-générée (analyse + audio multi-voix bilingue)
+   servie en STATIQUE depuis /demo → 0 token, 0 coût, 0 clé pour le visiteur.
+   ========================================================================== */
+let DEMO_MANIFEST=null; const DEMO_AUDIO=new Map();
+function demoCollapse(s){ return (s||"").replace(/\s+/g," ").trim(); }
+function demoLang(){ const l=state.demoLang||((S.uiLang==="en")?"en":"fr"); return (l==="en")?"en":"fr"; }
+async function loadDemoManifest(){ if(DEMO_MANIFEST) return DEMO_MANIFEST;
+  const r=await fetch("demo/manifest.json",{cache:"force-cache"}); if(!r.ok) throw new Error("demo manifest "+r.status);
+  DEMO_MANIFEST=await r.json(); return DEMO_MANIFEST; }
+function buildDemoAudioMap(){ DEMO_AUDIO.clear(); const m=DEMO_MANIFEST; if(!m)return;
+  // URL préfixée "demo/" (les chemins du manifest sont relatifs au dossier demo/, l'app est servie à la racine)
+  m.chapters.forEach(ch=>ch.turns.forEach(tn=>{ ["en","fr"].forEach(L=>{ DEMO_AUDIO.set(L+"|"+demoCollapse(tn["text_"+L]), "demo/"+tn["audio_"+L]); }); })); }
+function demoCurrentIdx(){ const cur=(typeof curListenOrigIdx==="function")?curListenOrigIdx():0; return Math.max(0,cur||0); }
+function demoChapterTurns(idx){ const m=DEMO_MANIFEST; if(!m)return[]; const ch=m.chapters[idx]; if(!ch)return[];
+  const L=demoLang(); return ch.turns.map(tn=>({speaker:tn["speaker_"+L], text:tn["text_"+L]})); }
+async function startDemo(lang){
+  try{ const m=await loadDemoManifest();
+    state.demoMode=true; state.demoLang=(lang==="en")?"en":"fr"; const L=state.demoLang;
+    buildDemoAudioMap();
+    state.analysis=m.analysis[L];
+    state.rawChapters=m.chapters.map(c=>({text:c["text_"+L], num:c.num, start_pct:c.start_pct, title:c["title_"+L]}));
+    state.voiceMap={}; state.marks=[]; state.currentId="__demo__"; state.narrTurns=null; state.pendingBookFp=null; state._elNeedsGen=false;
+    S.listenEngine="openai"; S.narrMode="multi"; S.listenWhat="story"; S.listenLang="orig";
+    enableTabs(); if(typeof setActiveBook==="function") setActiveBook(); buildGraph(); setRead(100); renderSummaries();
+    try{ const ls=$("#listenSource"); if(ls&&ls.options.length) ls.selectedIndex=0; }catch(_){} // la démo démarre au chapitre 1 (la scène du Roi)
+    if(typeof renderHdrCost==="function") renderHdrCost(); // masque le badge coût € (gratuit en démo)
+    show("map");
+    setTimeout(()=>{ showDemoBar(); showDemoCoach(); if(typeof updateMiniPlayer==="function") updateMiniPlayer(); }, 380);
+  }catch(e){ console.error(e); toast((demoLang()==="en"?"Demo unavailable: ":"Démo indisponible : ")+e.message); }
+}
+function switchDemoLang(lang){ if(!state.demoMode) return; if(((lang==="en")?"en":"fr")===state.demoLang) return;
+  const wasPlaying=isPlaying()||_listenOn; if(wasPlaying) listenStop();
+  startDemo(lang); }
+// Lecture démo : tours pré-segmentés du chapitre courant → playElevenMulti (audio statique via elSynthTurn). Aucune clé, aucun LLM.
+async function playDemo(){ if(listenBusy)return; const idx=demoCurrentIdx(); const turns=demoChapterTurns(idx);
+  if(!turns.length){ toast(demoLang()==="en"?"Demo not ready":"Démo non prête"); return; }
+  const startIdx=_resumeIdx||0; _resumeIdx=0; listenBusy=true; if($("#listenPlay"))$("#listenPlay").disabled=true;
+  try{ listenStop(); hideDemoCoach(); await playElevenMulti(turns,startIdx); }
+  finally{ listenBusy=false; if($("#listenPlay"))$("#listenPlay").disabled=false; } }
+// Coachmark « ▶ Cliquez sur Play » + bandeau démo (CTA achat) — créés à la volée
+function showDemoCoach(){ if(!state.demoMode) return; let el=$("#demoCoach"); if(!el){ el=document.createElement("div"); el.id="demoCoach"; el.className="demo-coach"; document.body.appendChild(el); }
+  el.innerHTML = (demoLang()==="en"? "▶ Tap <b>Play</b> below to hear the multi-voice narration — then explore the tabs while you listen" : "▶ Cliquez sur <b>Play</b> en bas pour écouter la narration multi-voix — puis baladez-vous dans les onglets en écoutant");
+  el.classList.add("show"); }
+function hideDemoCoach(){ const el=$("#demoCoach"); if(el) el.classList.remove("show"); }
+function showDemoBar(){ if(!state.demoMode) return; let b=$("#demoBar"); const FR=demoLang()!=="en";
+  if(!b){ b=document.createElement("div"); b.id="demoBar"; b.className="demo-bar"; const app=document.querySelector(".app")||document.body; app.insertBefore(b,app.firstChild);
+    b.addEventListener("click",e=>{ const a=e.target.closest("[data-demo-act]"); if(!a)return; const act=a.dataset.demoAct;
+      if(act==="unlock") openUnlock(); else if(act==="lang") switchDemoLang(a.dataset.lang); }); }
+  const L=state.demoLang;
+  b.innerHTML = `<span class="db-tag">${FR?"✦ Démo":"✦ Demo"}</span>`
+    + `<span class="db-txt">${FR?"Sherlock Holmes — <b>Un scandale en Bohême</b>. Pour lire <b>vos</b> livres :":"Sherlock Holmes — <b>A Scandal in Bohemia</b>. To read <b>your own</b> books:"}</span>`
+    + `<button class="db-cta" data-demo-act="unlock">${FR?"🔓 Débloquer mes livres":"🔓 Unlock my books"}</button>`
+    + `<span class="db-lang"><button data-demo-act="lang" data-lang="fr" class="${L==="fr"?"on":""}">FR</button><button data-demo-act="lang" data-lang="en" class="${L==="en"?"on":""}">EN</button></span>`;
+  b.classList.add("show"); }
+function exitDemo(){ state.demoMode=false; state.demoLang=null; DEMO_AUDIO.clear(); listenStop&&listenStop();
+  const b=$("#demoBar"); if(b) b.classList.remove("show"); hideDemoCoach(); }
+const SV_CONTACT_EMAIL="quangapps.dev@gmail.com";
+// Modale de déblocage / activation : packs d'achat + « j'ai déjà un code » + instructions claires (funnel achat→activation).
+function openUnlock(){ const FR=(S.uiLang||"fr")!=="en"; let ov=$("#unlockOverlay");
+  if(!ov){ ov=document.createElement("div"); ov.className="overlay"; ov.id="unlockOverlay"; document.body.appendChild(ov);
+    ov.addEventListener("click",e=>{ if(e.target===ov) ov.classList.remove("show"); }); }
+  const packs=SV_PACKS.map((pk,i)=>`<button class="btn ${i===1?"primary":"ghost"} ul-pack" data-i="${i}" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:7px"><span>⚡ <b>${pk.label}</b> · ≈ ${svHoursTxt(pk.credits,FR)} ${FR?"de voix":"of voice"}</span><b style="white-space:nowrap">${pk.price}</b></button>`).join("");
+  ov.innerHTML=`<div class="modal"><h2>🔓 ${FR?"Lisez VOS propres livres":"Read YOUR own books"}</h2><div class="body">
+    <p class="hint" style="line-height:1.6">${FR?"La démo Sherlock est gratuite. Pour analyser et écouter <b>vos</b> ebooks (TXT/EPUB), procurez-vous des crédits de voix. Le « cerveau » (résumés, carte des personnages, questions) ne coûte rien — <b>seule la narration vocale</b> consomme des crédits, et les passages déjà générés se réécoutent gratuitement.":"The Sherlock demo is free. To analyse and listen to <b>your</b> ebooks (TXT/EPUB), get voice credits. The “brain” (summaries, character map, Q&A) is free — <b>only voice narration</b> uses credits, and already-generated passages replay for free."}</p>
+    <div style="margin:14px 0 6px;font-size:11px;color:var(--txt-faint);text-transform:uppercase;letter-spacing:.5px">${FR?"Choisir un pack":"Choose a pack"}</div>
+    ${packs}
+    <div class="ul-sep">${FR?"Vous avez déjà un code ?":"Already have a code?"}</div>
+    <p class="hint" style="margin-top:0">${FR?"Après l'achat, vous recevez un <b>code d'accès</b> (commence par <code>sv_</code>) par email. Collez-le ici pour débloquer vos crédits :":"After purchase you receive an <b>access code</b> (starts with <code>sv_</code>) by email. Paste it here to unlock your credits:"}</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" id="ulCode" autocomplete="off" spellcheck="false" placeholder="sv_…" style="flex:1 1 200px;background:rgba(0,0,0,.3);border:1px solid var(--panel-brd);border-radius:11px;color:var(--txt);font:inherit;padding:10px 12px"><button class="btn primary" id="ulActivate">${FR?"Activer":"Activate"}</button></div>
+    <div id="ulMsg" class="hint" style="margin-top:8px;min-height:16px"></div>
+    <p class="hint" style="margin-top:16px;font-size:11.5px;line-height:1.6">${FR?"Une question ? Écrivez à":"A question? Email"} <a href="mailto:${SV_CONTACT_EMAIL}" style="color:var(--cyan)">${SV_CONTACT_EMAIL}</a></p>
+    <div style="margin-top:14px;text-align:right"><button class="btn ghost" id="ulClose">${FR?"Fermer":"Close"}</button></div>
+  </div></div>`;
+  ov.querySelectorAll(".ul-pack").forEach(b=>b.onclick=()=>svBuy(SV_PACKS[+b.dataset.i].url));
+  ov.querySelector("#ulClose").onclick=()=>ov.classList.remove("show");
+  ov.querySelector("#ulActivate").onclick=()=>{ const v=($("#ulCode").value||"").trim(); const msg=$("#ulMsg");
+    if(!v){ msg.style.color="#ffb4b4"; msg.textContent=FR?"Collez votre code.":"Paste your code."; return; }
+    if(v.indexOf("sv_")!==0){ msg.style.color="#ffb4b4"; msg.textContent=FR?"Un code valide commence par « sv_ ».":"A valid code starts with “sv_”."; return; }
+    setSecret(v); _svAcct=null; if($("#apiKey")) $("#apiKey").value=v;
+    msg.style.color="var(--cyan)"; msg.textContent=FR?"Vérification…":"Checking…";
+    refreshSvAccount().then(a=>{ renderHdrCost&&renderHdrCost();
+      if(a && Number(a.credits)>0){ msg.style.color="#46d27a"; msg.textContent=FR?("✓ Activé — ≈ "+svHoursTxt(a.credits,FR)+" de voix. Vous pouvez charger vos livres !"):("✓ Activated — ≈ "+svHoursTxt(a.credits,FR)+" of voice. You can load your books!");
+        exitDemo(); setTimeout(()=>{ ov.classList.remove("show"); show("home"); toast(FR?"Crédits activés ✓":"Credits activated ✓"); },1400); }
+      else if(a){ msg.style.color="#ffd166"; msg.textContent=FR?"Code reconnu mais solde à 0 — rechargez un pack.":"Code recognised but balance is 0 — top up a pack."; }
+      else { msg.style.color="#ffb4b4"; msg.textContent=FR?"Code non reconnu. Vérifiez l'email reçu après l'achat.":"Code not recognised. Check the email you got after purchase."; } }); };
+  ov.classList.add("show");
+  setTimeout(()=>{ const i=$("#ulCode"); if(i) i.focus(); },60); }
 // Modèles d'analyse texte (tous OpenAI-compatibles via le gateway → callLLM inchangé)
 const PROVIDERS = {
   deepseek:{ endpoint:"/api/deepseek", model:"deepseek-chat", label:"DeepSeek V4 — équilibré (défaut)" },
@@ -2362,7 +2475,7 @@ function show(tab){ state.tab=tab; document.body.dataset.tab=tab; // data-tab po
 }
 $("#tabs").addEventListener("click",e=>{ const b=e.target.closest(".tab"); if(b&&!b.disabled) show(b.dataset.view); });
 
-$("#btnInput").onclick=()=>{ $("#overlay").classList.add("show"); if(typeof updateMiniPlayer==="function") updateMiniPlayer(); };
+$("#btnInput").onclick=()=>{ if(!getSecret()){ openUnlock(); return; } /* visiteur sans clé → funnel d'achat (pas de chargement de ses livres en gratuit) */ if(state.demoMode) exitDemo(); $("#overlay").classList.add("show"); if(typeof updateMiniPlayer==="function") updateMiniPlayer(); };
 $("#btnCancel").onclick=()=>{ $("#overlay").classList.remove("show"); if(typeof updateMiniPlayer==="function") updateMiniPlayer(); };
 $("#btnFile").onclick=()=>$("#fileInput").click();
 $("#fileInput").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; if(!f)return; // reset value → re-sélectionner le MÊME fichier refire bien l'event (bug 15/06)
@@ -2424,10 +2537,8 @@ $("#btnAnalyze").onclick=()=>{ if(pendingBook){ const pb=pendingBook;
   const h2=contentHash(t2), d2=findCachedBook(h2);
   if(d2){ confirmAction(t("reuse.msg").replace("{t}",d2.title), ()=>openCachedBook(d2), ()=>{ state.pendingHash=h2; analyze(t2); }, {yes:t("reuse.yes"),no:t("reuse.no")}); return; }
   state.pendingHash=h2; analyze(t2); };
-$("#btnDemo").onclick=()=>{ const d=$("#DEMO_DATA").textContent.trim(); if(d.length<200){toast("Demo?");return;}
-  const h=contentHash(d), dup=findCachedBook(h);
-  if(dup){ confirmAction(t("reuse.msg").replace("{t}",dup.title), ()=>openCachedBook(dup), ()=>{ state.pendingHash=h; analyze(d); }, {yes:t("reuse.yes"),no:t("reuse.no")}); return; }
-  state.pendingHash=h; analyze(d); };
+// Mode découverte : assets pré-générés (analyse + audio multi-voix), 0 token / 0 clé. Langue = celle de l'UI.
+$("#btnDemo").onclick=()=>startDemo(S.uiLang==="en"?"en":"fr");
 
 $("#btnSettings").onclick=()=>{ syncSettingsUI(); $("#setOverlay").classList.add("show"); };
 if($("#hdrCost")) $("#hdrCost").onclick=()=>openCost(); // bouton coût header → détail complet (overlay « Suivi & coûts »)
@@ -3023,7 +3134,7 @@ async function askQuestion(q){ q=(q||"").trim(); if(!q) return; if(!state.analys
     state.askHistory.pop(); state.askHistory.push({role:"bot",text:ans||"…"}); }
   catch(e){ state.askHistory.pop(); state.askHistory.push({role:"bot",text:t("ask.sError")+" ("+e.message+")"}); }
   renderAsk(); persistAsk(); }
-$("#askSend").onclick=()=>{ const v=$("#askInput").value; $("#askInput").value=""; askQuestion(v); };
+$("#askSend").onclick=()=>{ if(state.demoMode){ toast((S.uiLang==="en")?"Q&A is available with your own books — unlock with credits.":"Les questions sont disponibles avec vos propres livres — débloquez avec des crédits."); openUnlock(); return; } const v=$("#askInput").value; $("#askInput").value=""; askQuestion(v); };
 $("#askInput").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#askSend").click(); } });
 $("#askSuggest").addEventListener("click",e=>{ const b=e.target.closest("[data-ask]"); if(b) askQuestion(b.dataset.ask); });
 
@@ -4090,6 +4201,8 @@ function ttsAddCost(chars){ const r=ttsRate(); if(!r||!chars)return; const cost=
   try{ localStorage.setItem("storyvoice.ttscost",JSON.stringify(L)); }catch(_){} costDailyAdd("v",cost);
   renderHdrCost(); renderElCredits(); }
 function renderHdrCost(){ const b=$("#hdrCost"); if(!b)return;
+  if(state.demoMode){ b.style.display="none"; return; } // démo : gratuit → aucun badge de coût/solde visible pour le visiteur
+  if(!getSecret()){ b.style.display="none"; return; } // visiteur sans clé : pas de coût/compte → on n'expose aucun détail technique (€/tokens)
   if(isProKey()){ const FRsv=(S.uiLang||"fr")!=="en"; const txt=$("#hdrCostTxt"); // clé sv_ → solde crédits VOIX (pas de € technique)
     if(_svAcct && _svAcct.plan==="unlimited"){ b.style.display="none"; return; } // accès illimité → ni solde ni paywall
     const c=_svAcct?_svAcct.credits:null;
@@ -4379,10 +4492,12 @@ async function synthGeminiTts(txt,voiceName){ const sec=getSecret();
   const j=await r.json(); const b64=j&&j.audioContent; if(!b64) throw new Error("no audio");
   return b64ToBlob(b64,"audio/mpeg"); }
 // synthèse d'UN tour (moteur courant), cache mémoire+IndexedDB (clé moteur|modèle|voix|ton|texte) → 0 € en réécoute
-async function elSynthTurn(txt,voiceId){ const key=elKey(voiceId,txt);
+async function elSynthTurn(txt,voiceId){
+  if(state.demoMode){ const u=DEMO_AUDIO.get(demoLang()+"|"+(txt||"").replace(/\s+/g," ").trim()); if(u) return {url:u,starts:null}; } // démo : audio statique pré-généré
+  const key=elKey(voiceId,txt);
   if(elCache.has(key)){ const e=elCache.get(key); return {url:e.url,starts:null}; }
   const rec=await idbGet("audio",key); if(rec&&rec.blob){ const url=URL.createObjectURL(rec.blob); elCache.set(key,{url,starts:null}); return {url,starts:null}; }
-  const sec=getSecret(); if(!sec){ requireKey(); throw new Error("key"); }
+  const sec=getSecret(); if(!sec && !state.demoMode){ requireKey(); throw new Error("key"); }
   // Moteur Gemini : ton ≠ neutre → Gemini-TTS (le ton, ~3-7s) ; neutre → Chirp 3 HD (lecture plate identique mais ~0,5s, idée Quang). Clé cache identique (dépend du ton, pas du backend) → 0 régénération.
   // Mode prépayé sv_ : voix Gemini (gcptts) non exposée par le gateway-pro → forcer OpenAI TTS.
   const blob=(S.listenEngine==="gemini" && !isProKey())
@@ -4394,7 +4509,7 @@ async function elSynthTurn(txt,voiceId){ const key=elKey(voiceId,txt);
 let elMultiTurns=null, elMultiCast=null; // état multi-voix EL (pour le clic-pour-sauter #12)
 let elGenCtx=null; // contexte de génération courant → étiquette le cache audio pour la bibliothèque #genLibrary
 function genMeta(o){ const src=sourceText(); return Object.assign({ what:(S.listenWhat||"story"), chapTitle:(src.title||""), chapNum:curChapterNum(), tone:(S.elTone||"neutre"), model:elModel(), ts:Date.now() }, o||{}); }
-async function playElevenMulti(turns,startIdx){ const sec=getSecret(); if(!sec){ requireKey(); return; }
+async function playElevenMulti(turns,startIdx){ const sec=getSecret(); if(!sec && !state.demoMode){ requireKey(); return; }
   if(turns){ // nouvelle lecture : préparer tours + cast ; sinon réutiliser (cas seek)
     state._sceneLit=new Set(); state._activeIds=null; state._speakingId=null; state._prevSpkId=null; // Carte vivante : nouvelle scène
     turns=turns.map(tn=>({speaker:tn.speaker||"narrateur", text:(tn.text||"").replace(/\s+/g," ").trim().slice(0,EL_MAX_CHARS)})).filter(tn=>tn.text);
@@ -4527,6 +4642,7 @@ function getResume(){ const b=library.find(x=>x.id===state.currentId); const r=b
 // ── Orchestration unifiée : ▶︎ Écouter / Pause / Stop ──
 let listenBusy=false;
 async function listenPlay(){ if(listenBusy)return; if(!state.analysis){ toast(t("t.analyzeFirst")); return; }
+  if(state.demoMode){ return playDemo(); } // mode découverte : audio statique pré-généré
   const src=sourceText();
   if(!src.text){ toast((S.listenWhat||"story")==="summary"?t("listen.noSummary"):(state.rawChapters&&state.rawChapters.length?t("narr.needScene"):t("narr.noRaw"))); return; }
   const _startIdx=_resumeIdx||0; _resumeIdx=0; // signet de reprise consommé (0 = depuis le début)
@@ -4857,7 +4973,7 @@ function updateMiniPlayer(){ const mp=$("#miniPlayer"); if(!mp)return;
   const tg=$("#mpToggle"); if(tg){ tg.textContent=expanded?"⌄":"⌃"; tg.title=expanded?(FR?"Réduire le lecteur":"Collapse player"):(FR?"Agrandir le lecteur":"Expand player"); }
   // pastille d'état : ♪ en lecture · 🟢 prêt · ⚡ à générer (premium sans cache)
   mp.classList.toggle("playing",playing);
-  const needGen=isPrem() && state._elNeedsGen && !_listenOn; // « à générer » seulement hors lecture
+  const needGen=isPrem() && state._elNeedsGen && !_listenOn && !state.demoMode; // « à générer » seulement hors lecture (jamais en démo : audio statique)
   const rsm = (!playing && !_listenOn && !needGen && typeof getResume==="function") ? getResume() : null; // signet de reprise (chapitre déjà entamé)
   const dot=$("#mpDot"); if(dot){ if(playing){ dot.textContent="♪"; dot.style.color="var(--cyan)"; } else if(needGen){ dot.textContent="⚡"; dot.style.color="#ffb454"; } else { dot.textContent="●"; dot.style.color="#46d27a"; } }
   const bub=$("#mpBubble"); if(bub&&dot){ bub.textContent=dot.textContent; bub.style.color=dot.style.color; } // la bulle réduite reflète l'état
@@ -4892,6 +5008,7 @@ function updateMiniPlayer(){ const mp=$("#miniPlayer"); if(!mp)return;
 // Bouton principal : EXACTEMENT le même chemin que les boutons d'Écoute (listenPause/listenPlay) → tous les réglages
 // utilisateur (moteur, voix, ton, multi-voix, langue, vitesse) sont respectés. ✨ Générer = confirmation avec le coût € avant de dépenser.
 if($("#mpPlay")) $("#mpPlay").onclick=()=>{ if(isPlaying()||_listenOn){ listenPause(); setTimeout(updateMiniPlayer,80); return; }
+  if(state.demoMode){ listenPlay(); setTimeout(updateMiniPlayer,80); return; } // démo : audio statique → lecture directe, jamais d'étape « Générer »
   if(isPrem() && state._elNeedsGen){ const FR=_nfr(); const cost=miniGenCost();
     confirmAction((FR?("Générer l'audio de ce chapitre ? ≈ "+cost):("Generate this chapter's audio? ≈ "+cost)),
       ()=>{ if(typeof listenPlay==="function"){ listenPlay(); setTimeout(updateMiniPlayer,120); } });
@@ -4958,7 +5075,7 @@ function esc(s){ return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;
 loadStore(); PROVIDER=PROVIDERS[S.provider]||PROVIDERS.deepseek; maybeAutoResetBudget(); applyI18n(); renderLibrary(); setRead(100); syncVolUI(); loadVoices();
 // Réouverture auto du dernier ebook ouvert (reprend où l'utilisateur en était : liseuse au chapitre+scroll, ou carte)
 if(S.lastBook){ const _lb=library.find(x=>x.id===S.lastBook); if(_lb&&_lb.analysis){ const _lt=S.lastTab; /* capturé AVANT : openCachedBook force read/map et écrase lastTab */ try{ openCachedBook(_lb); if(_lt&&["read","listen","sum","map","ask"].includes(_lt)) show(_lt); }catch(_){} } }
-if(!getSecret()){ syncSettingsUI(); $("#setOverlay").classList.add("show"); }
+if(!getSecret()){ try{ document.body.classList.add("nokey"); }catch(_){} } // visiteur sans clé : PAS de modale token (cul-de-sac) → accueil avec la démo mise en avant
 // PWA — enregistrement du service worker (app shell offline ; n'intercepte JAMAIS le gateway, cf sw.js). Guard file:// → no-op en dev local.
 if("serviceWorker" in navigator && location.protocol!=="file:"){ window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(e=>console.warn("[SW] échec enregistrement", e)); }); }
 </script>

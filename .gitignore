@@ -6,3 +6,13 @@ sv_pwa_*
 *.bak
 .DS_Store
 Thumbs.db
+# artefacts QA / pré-génération démo (ne pas committer)
+_demo_*
+_mob_*
+_qa_*
+_pregen*
+_newclient.jpg
+_mobile_credits.jpg
+*.b64
+.browser-automation/
+demo/_pregen.log
