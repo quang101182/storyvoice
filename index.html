@@ -419,7 +419,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.11.1</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.12.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -2017,7 +2017,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.11.1";
+const VERSION = "1.12.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2473,7 +2473,7 @@ $("#setBtnAudioClear").onclick=()=>{ confirmAction(t("set.clearAudioConfirm"), a
 $("#selProvider").onchange=e=>{ S.provider=e.target.value; PROVIDER=PROVIDERS[S.provider]||PROVIDERS.deepseek; saveStore(); toast(t("set.modelSet").replace("{m}",PROVIDER.label)); };
 function segSet(sel,val){ $$(sel+" button").forEach(b=>b.classList.toggle("on",b.dataset.v===val)); }
 $("#segUiLang").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; S.uiLang=b.dataset.v; segSet("#segUiLang",S.uiLang); applyI18n(); populatePerso(); renderPersoBookHint(); refreshCustomSelects&&refreshCustomSelects(); saveStore(); };
-$("#segContentLang").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; S.listenLang=b.dataset.v; segSet("#segContentLang",S.listenLang); state.narrTurns=null; saveStore(); refreshBookLangUI(); }; // « Langue du livre » unifiée → lecture + écoute + résumés
+$("#segContentLang").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; S.listenLang=b.dataset.v; _transGen++; segSet("#segContentLang",S.listenLang); state.narrTurns=null; saveStore(); refreshBookLangUI(); }; // « Langue du livre » unifiée → lecture + écoute + résumés
 $("#selPerso").onchange=e=>{ S.perso=e.target.value; saveStore(); renderPersoBookHint(); }; // ton des résumés (dropdown) — global = défaut ; mémoire par livre via state.analysis.perso
 $("#swPersist").onchange=e=>{ S.persist=e.target.checked; if(S.persist) saveStore(); else { try{localStorage.removeItem(LS_KEY);}catch(_){} } };
 
@@ -2510,9 +2510,11 @@ addEventListener("unhandledrejection",e=>logEvent({kind:"promise-reject",error:S
 async function callLLM(prompt, maxTokens=4800, kind="analyse"){
   const sec=getSecret(); if(!sec){ requireKey(); throw new Error(t("key.missing")); }
   const t0=Date.now();
-  const res=await fetch(GATEWAY+PROVIDER.endpoint,{method:"POST",
+  // anti-blocage : _fetchTO abort après 120s (un appel LLM dense peut être long, mais JAMAIS infini) → AbortError remontée proprement aux catch existants (par-lot/analyse)
+  let res; try{ res=await _fetchTO(GATEWAY+PROVIDER.endpoint,{method:"POST",
     headers:{"Authorization":"Bearer "+sec,"Content-Type":"application/json"},
-    body:JSON.stringify({model:PROVIDER.model,messages:[{role:"user",content:prompt}],temperature:0.3,max_tokens:maxTokens})});
+    body:JSON.stringify({model:PROVIDER.model,messages:[{role:"user",content:prompt}],temperature:0.3,max_tokens:maxTokens})}, 120000);
+  }catch(e){ const msg=(e&&e.name==="AbortError")?("timeout "+kind+" (120s)"):("réseau : "+((e&&e.message)||e)); logEvent({kind,error:msg}); throw new Error(msg); }
   if(!res.ok){ const tx=(await res.text()).slice(0,160); logEvent({kind,error:"HTTP "+res.status+" "+tx}); throw new Error("HTTP "+res.status+" "+tx); }
   const j=await res.json(); recordUsage(kind,j&&j.usage,Date.now()-t0,j&&j.model);
   return (j&&j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";
@@ -2549,7 +2551,19 @@ REGLES CRITIQUES:
 === TEXTE ===
 ${text}`;
 }
-function extractJSON(s){ s=s.replace(/```json/gi,"").replace(/```/g,"").trim(); const i=s.indexOf("{"),j=s.lastIndexOf("}"); if(i<0||j<0) throw new Error("Pas de JSON"); return JSON.parse(s.slice(i,j+1)); }
+function extractJSON(s){ s=s.replace(/```json/gi,"").replace(/```/g,"").trim(); const i=s.indexOf("{"),j=s.lastIndexOf("}"); if(i<0||j<0) throw new Error("Pas de JSON"); const raw=s.slice(i,j+1);
+  try{ return JSON.parse(raw); }
+  catch(e){ try{ return JSON.parse(raw.replace(/,\s*([}\]])/g,"$1")); }catch(_){ throw e; } } } // salvage : virgule traînante avant }/] (sortie LLM fréquente) → 2e essai avant d'abandonner
+// Garde-fou de schéma : garantit la forme attendue (entities/relations/chapters = arrays, global = objet, entités valides, relations NON-orphelines) → une analyse LLM malformée ne casse plus la constellation ni les résumés. Conservateur : ne supprime QUE le clairement invalide.
+function normalizeAnalysis(d){ if(!d||typeof d!=="object") d={};
+  if(!Array.isArray(d.entities)) d.entities=[];
+  if(!Array.isArray(d.relations)) d.relations=[];
+  if(!Array.isArray(d.chapters)) d.chapters=[];
+  if(!d.global||typeof d.global!=="object") d.global={};
+  d.entities=d.entities.filter(e=>e&&typeof e==="object"&&e.id&&e.name);
+  const ids=new Set(d.entities.map(e=>String(e.id)));
+  d.relations=d.relations.filter(r=>r&&typeof r==="object"&&ids.has(String(r.from))&&ids.has(String(r.to))&&String(r.from)!==String(r.to));
+  return d; }
 const clamp=v=>Math.max(0,Math.min(100,v));
 const norm=s=>(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/gi,"").replace(/\s+/g," ").trim();
 
@@ -2831,7 +2845,7 @@ async function analyze(text){
   const steps=[t("ld.read"),t("ld.chars"),t("ld.rel"),t("ld.sum"),t("ld.const")]; let si=0; $("#loadTxt").textContent=steps[0];
   const it=setInterval(()=>{si=(si+1)%steps.length;$("#loadTxt").textContent=steps[si];},1800);
   try{
-    const data=extractJSON(await callLLM(buildPrompt(text),4800,"single"));
+    const data=normalizeAnalysis(extractJSON(await callLLM(buildPrompt(text),4800,"single")));
     if(!data.entities||!data.entities.length) throw new Error("Aucune entité");
     data.entities.forEach(e=>e.reveal_pct=clamp(+e.reveal_pct||0));
     (data.relations||[]).forEach(r=>r.reveal_pct=clamp(+r.reveal_pct||0));
@@ -3442,7 +3456,7 @@ function syncReaderToListen(){ if(_chapSyncing) return; const num=(typeof curCha
   const i=readerChapters().findIndex(c=>c.num===num); if(i<0||i===state.readerIdx) return;
   _chapSyncing=true; try{ state.readerIdx=i; renderReader(); persistReaderPos(); } finally{ _chapSyncing=false; } }
 $("#readerChap").onchange=e=>{ state.readerIdx=+e.target.value; renderReader(); persistReaderPos(); syncListenToReader(); };
-if($("#readerLang")) $("#readerLang").onchange=e=>{ S.listenLang=e.target.value; saveStore(); renderReader(); }; // langue UNIFIÉE liseuse↔écoute
+if($("#readerLang")) $("#readerLang").onchange=e=>{ S.listenLang=e.target.value; _transGen++; saveStore(); renderReader(); }; // langue UNIFIÉE liseuse↔écoute
 $("#readerPrev").onclick=()=>{ if(state.readerIdx>0){ state.readerIdx--; renderReader(); persistReaderPos(); syncListenToReader(); } };
 $("#readerNext").onclick=()=>{ if(state.readerIdx<readerChapters().length-1){ const leaving=state.readerIdx; state.readerIdx++; renderReader(); persistReaderPos(); autoAdvanceRead(leaving); syncListenToReader(); /* progression auto : marque comme lu le chapitre quitté (couvre les chapitres trop courts pour scroller) */ } };
 $("#readerMark").onclick=readerMark;
@@ -3609,6 +3623,7 @@ function syncMarkTooltips(){ const set=(s,k)=>{ const el=$(s); if(el)el.title=t(
 /* ============ ONGLET ÉCOUTE — carte unifiée v0.31 (Quoi · Langue · Moteur · texte+karaoké) ============ */
 // État : S.listenWhat (story|summary) · S.listenLang (orig|fr|en) · S.listenEngine (browser|eleven)
 const translateCache=new Map(); // contentHash(lang|texte) → traduction (cache session)
+let _transGen=0; // jeton d'annulation : incrémenté à CHAQUE changement de langue → une traduction en vol pour l'ancienne langue s'auto-annule (n'écrase plus l'affichage, n'enchaîne plus les chunks/appels LLM inutiles)
 
 // ── Source : ce qu'on peut écouter selon "Quoi écouter" ──
 function narrScenes(){ return (state.rawChapters||[]).filter(c=>(c.start_pct||0)<=state.readPct && !isFrontMatter(c.text)); }
@@ -3644,21 +3659,24 @@ function narrLangFr(){ return listenLangCode()==="en"?"anglais":"français"; } /
 function needsTranslation(){ const l=S.listenLang||"orig"; return (l==="fr"||l==="en") && l!==bookLang(); }
 function buildTranslatePrompt(text,target){ const lang=target==="fr"?"français":"anglais";
   return `Traduis fidèlement ce passage de récit en ${lang}. Conserve le ton narratif, les dialogues et la ponctuation. Ne résume pas, n'ajoute aucun commentaire : renvoie UNIQUEMENT la traduction.\n\n=== TEXTE ===\n${text}`; }
-async function translateScene(text){ if(!needsTranslation()||!text) return text; const target=S.listenLang;
+async function translateScene(text){ if(!needsTranslation()||!text) return text; const target=S.listenLang; const myGen=_transGen;
   const key=contentHash(target+"|"+text); if(translateCache.has(key)) return translateCache.get(key);
   const rec=await idbGet("trans",key); if(rec&&rec.text){ translateCache.set(key,rec.text); return rec.text; } // persisté → 0 appel LLM
   const raw=await callLLM(buildTranslatePrompt(text.slice(0,6000),target), 4800, "traduction");
+  if(myGen!==_transGen) return text; // langue changée pendant l'appel → on annule
   const clean=(raw||"").replace(/^```[a-z]*\n?/i,"").replace(/```\s*$/,"").trim()||text;
   translateCache.set(key,clean); idbPut("trans",{key,text:clean,bookId:state.currentId||"_"}); return clean; }
 // Traduction d'un CHAPITRE ENTIER (liseuse) : découpé en morceaux (un chapitre dépasse les 6000 car de translateScene), cache session + IDB `trans`. Paresseux (appelé au rendu si langue ≠ livre). target = 'fr'|'en'.
 const _rdTransKey=(target,text)=>contentHash(target+"|RD|"+text);
 function rdTransCached(target,text){ const k=_rdTransKey(target,text); return translateCache.has(k)?translateCache.get(k):null; }
-async function translateLong(target,text){ if(!text) return text; const k=_rdTransKey(target,text);
+async function translateLong(target,text){ if(!text) return text; const myGen=_transGen; const k=_rdTransKey(target,text);
   if(translateCache.has(k)) return translateCache.get(k);
   const rec=await idbGet("trans",k); if(rec&&rec.text){ translateCache.set(k,rec.text); return rec.text; }
   const parts=chunkText(text,4000); const out=[];
-  for(let i=0;i<parts.length;i++){ let raw; try{ raw=await callLLM(buildTranslatePrompt(parts[i],target),4800,"traduction lecture "+(i+1)+"/"+parts.length); }catch(_){ raw=parts[i]; }
+  for(let i=0;i<parts.length;i++){ if(myGen!==_transGen) return text; // langue changée pendant la traduction → on annule (n'écrase pas, n'appelle plus le LLM)
+    let raw; try{ raw=await callLLM(buildTranslatePrompt(parts[i],target),4800,"traduction lecture "+(i+1)+"/"+parts.length); }catch(_){ raw=parts[i]; }
     out.push((raw||"").replace(/^```[a-z]*\n?/i,"").replace(/```\s*$/,"").trim()||parts[i]); }
+  if(myGen!==_transGen) return text;
   const clean=out.join("\n\n"); translateCache.set(k,clean); idbPut("trans",{key:k,text:clean,bookId:state.currentId||"_"}); return clean; }
 
 // ── Texte + karaoké (toujours visibles dans #listenText) ──
@@ -4003,12 +4021,14 @@ function renderElCredits(){ const el=$("#elCredits"); if(el) el.innerHTML=""; } 
 let _listenOn=false;
 function setElPlaying(on){ setPauseDisabled(!on); setPauseBtn(false); if(on) setFollow(true); updateFocusBtn(); _listenOn=on; if(typeof updateMiniPlayer==="function") updateMiniPlayer(); }
 let elCurStarts=null; // alignement caractères de l'audio EL courant (pour le seek #12)
-function stopEleven(){ if(elAudio){ elAudio.pause(); elAudio.currentTime=0; elAudio.ontimeupdate=null; } }
+// anti-fuite mémoire : détache TOUS les handlers + libère la source d'un élément Audio remplacé (les URL blob restent cachées dans elCache pour réécoute → on ne les revoke PAS ici)
+function _audioTeardown(a){ if(!a) return; try{ a.pause(); }catch(_){} a.ontimeupdate=null; a.onended=null; a.onerror=null; a.onloadedmetadata=null; try{ a.removeAttribute("src"); a.load(); }catch(_){} }
+function stopEleven(){ if(elAudio){ elAudio.pause(); elAudio.currentTime=0; elAudio.ontimeupdate=null; elAudio.onended=null; elAudio.onerror=null; } }
 function elPauseToggle(){ if(!elAudio)return; if(elAudio.paused){ elAudio.play().catch(()=>{}); stat("#listenStatus","▶ "+t("el.playing")); setPauseBtn(false); } else { elAudio.pause(); stat("#listenStatus","⏸ "+t("el.paused")); setPauseBtn(true); } updatePlayBtn(); } // setPauseBtn = #listenPause ET #immPause ; updatePlayBtn rafraîchit le bouton lecture des 2 barres (#R1)
 function b64ToBlob(b64,type){ const bin=atob(b64); const len=bin.length; const arr=new Uint8Array(len); for(let i=0;i<len;i++)arr[i]=bin.charCodeAt(i); return new Blob([arr],{type:type||"audio/mpeg"}); }
 function elKaraoke(starts){ elCurStarts=starts||null; if(!elAudio||!starts||!starts.length) return; // alignement caractères → surlignage piloté par currentTime
   elAudio.ontimeupdate=()=>{ const ct=elAudio.currentTime||0; let ci=0; for(let k=0;k<starts.length;k++){ if(starts[k]<=ct) ci=k; else break; } highlightWord(0, ci); }; }
-function elPlayUrl(url,cached){ if(elAudio){ elAudio.pause(); } elAudio=new Audio(url); elAudio.volume=(S.vol!=null?S.vol:100)/100; elAudio.playbackRate=elSpeed();
+function elPlayUrl(url,cached){ _audioTeardown(elAudio); elAudio=new Audio(url); elAudio.volume=(S.vol!=null?S.vol:100)/100; elAudio.playbackRate=elSpeed();
   elAudio.onended=()=>{ stat("#listenStatus","✓ "+t("el.done")); setElPlaying(false); $$("#listenText .kw.on").forEach(s=>s.classList.remove("on")); updateCacheBadge(); autoAdvanceChapter(); };
   elAudio.onerror=()=>{ stat("#listenStatus","❌ "+t("el.err")); setElPlaying(false); };
   elAudio.play().catch(()=>{}); stat("#listenStatus","▶ "+(cached?t("el.playingCached"):t("el.playing"))); setElPlaying(true); }
@@ -4030,7 +4050,7 @@ function elCast(speakers){ const list=engVoices(); const e=curEng();
 function isPremMulti(){ return (S.listenWhat||"story")==="story" && isPrem() && (S.narrMode||"simple")==="multi"; }
 async function elPreviewVoice(voiceId){ if(!voiceId)return; const sec=getSecret(); if(!sec){ requireKey(); return; }
   const FR=(S.uiLang||"fr")!=="en"; const sample=FR?"Bonjour, je serai votre voix pour ce récit.":"Hello, I will be your voice for this story.";
-  try{ setLoading("#listenStatus","🎙️ "+t("narr.preview")); const res=await elSynthTurn(sample,voiceId); if(elAudio)elAudio.pause(); elAudio=new Audio(res.url); elAudio.volume=(S.vol!=null?S.vol:100)/100; elAudio.playbackRate=elSpeed(); elAudio.play().catch(()=>{}); clearStatus(); }
+  try{ setLoading("#listenStatus","🎙️ "+t("narr.preview")); const res=await elSynthTurn(sample,voiceId); _audioTeardown(elAudio); elAudio=new Audio(res.url); elAudio.volume=(S.vol!=null?S.vol:100)/100; elAudio.playbackRate=elSpeed(); elAudio.play().catch(()=>{}); clearStatus(); }
   catch(err){ if(err&&err.message!=="key") stat("#listenStatus","❌ "+t("el.err")); } }
 function elVoiceOptionsHtml(cur){ const list=engVoices(); const grp={female:[],male:[],other:[]}; list.forEach(v=>grp[v.gender==="female"?"female":v.gender==="male"?"male":"other"].push(v)); const FR=(S.uiLang||"fr")!=="en"; let h="";
   const g=(lab,arr)=>arr.length?`<optgroup label="${lab}">`+arr.map(v=>`<option value="${esc(v.id)}"${v.id===cur?" selected":""}>${esc(v.name)}</option>`).join("")+`</optgroup>`:"";
@@ -4240,7 +4260,7 @@ async function elPlayFrom(i){ const gen=++elGen; const turns=elMultiTurns, cast=
   let res; try{ res=await elSynthTurn(tn.text,vid); }catch(e){ stat("#listenStatus", /GEMINI_QUOTA_DAY/.test(e.message)?t("narr.gemQuota"):("❌ "+t("el.err")+" "+esc(e.message))); setElPlaying(false); return; }
   if(elMultiStop||gen!==elGen) return; // un nouveau clic/seek a pris la main → cette synthèse dépassée n'enchaîne pas
   stat("#listenStatus","▶ "+t("el.playing")+" ("+(i+1)+"/"+turns.length+")");
-  if(elAudio) elAudio.pause(); elAudio=new Audio(res.url); elAudio.volume=vol(); elAudio.playbackRate=elSpeed();
+  _audioTeardown(elAudio); elAudio=new Audio(res.url); elAudio.volume=vol(); elAudio.playbackRate=elSpeed();
   const cur=$("#ntr"+i); if(cur){ cur.classList.add("active"); maybeScroll(cur); } onSpeakingTurn(tn.speaker,i);
   const starts=res.starts; elAudio.ontimeupdate=()=>{ if(!starts)return; const ct=elAudio.currentTime||0; let ci=0; for(let k=0;k<starts.length;k++){ if(starts[k]<=ct) ci=k; else break; } highlightWord(i,ci); };
   elAudio.onended=()=>{ if(cur){ cur.classList.remove("active"); cur.querySelectorAll(".kw.on").forEach(s=>s.classList.remove("on")); } elPlayFrom(i+1); };
@@ -4481,7 +4501,7 @@ function syncListenUI(){ loadVoices();
   previewListenText(); renderElEstimate(); updateCacheBadge(); updatePlayBtn(); scheduleGenLib(); refreshCustomSelects(); renderToneSuggestion(); applyAdvVoice();
 }
 $("#segListenWhat").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; S.listenWhat=b.dataset.v; state.narrTurns=null; saveStore(); listenStop(); syncListenUI(); };
-$("#selListenLang").onchange=e=>{ S.listenLang=e.target.value; state.narrTurns=null; saveStore(); listenStop(); syncListenUI(); };
+$("#selListenLang").onchange=e=>{ S.listenLang=e.target.value; _transGen++; state.narrTurns=null; saveStore(); listenStop(); syncListenUI(); };
 $("#segListenEngine").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; S.listenEngine=b.dataset.v; saveStore(); persistBookVoice(); listenStop(); syncListenUI(); };
 // ⚙ Bloc « Réglages voix » repliable (persisté S.listenAdvOpen) — résumé affiché quand replié
 function renderAdvVoiceSummary(){ const el=$("#advVoiceSummary"); if(!el)return; if(S.listenAdvOpen!==false){ el.textContent=""; return; }
