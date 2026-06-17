@@ -387,6 +387,14 @@
   .toast.show{opacity:1;transform:translateX(-50%)}
   .ver{position:fixed;right:10px;bottom:8px;z-index:40;color:var(--txt-faint);font-size:11px;letter-spacing:.5px;pointer-events:none}
   @media (max-width:640px){
+    /* --- Mobile : ACCUEIL compact (Quang : trop de texte / espace gâché) → fin du centrage vertical forcé, marges réduites, h1 plus petit, présentation condensée à 2 lignes → actions + bibliothèque remontent --- */
+    .center{justify-content:flex-start !important;min-height:auto !important;padding:14px 14px 24px !important;gap:11px !important}
+    .center h1{font-size:22px !important}
+    .center p{font-size:13px !important;line-height:1.45 !important;max-width:none !important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .library{margin-top:14px !important} #homeHint{margin-top:10px !important;font-size:11.5px !important}
+    /* --- Mobile : pop-up « Charger un texte » → texte d'aide verbeux masqué (gagne de la hauteur pour la liste de chapitres) --- */
+    #overlay .body > .hint[data-i18n="input.tip"]{display:none !important}
+    #chapList{max-height:46vh !important}
     header{padding:8px 12px;gap:6px}.logo small{font-size:10px;opacity:.75;margin-left:1px}.tab span.lbl{display:none}
     .summary-wrap,.read-bar,.map-top{padding-left:14px;padding-right:14px}
     /* --- Mobile : compactage du header (logo + coût + onglets tiennent en 2 lignes serrées) --- */
@@ -439,7 +447,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.17.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.18.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -750,7 +758,7 @@
         <label class="hint" data-i18n="chap.titleLabel" style="display:block;margin-bottom:5px">📖 Titre du livre</label>
         <input type="text" id="chapTitle" spellcheck="false" data-i18n-ph="chap.titlePh" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--panel-brd);border-radius:12px;color:var(--txt);font:inherit;padding:9px 12px;margin-bottom:14px">
         <div class="row-flex"><span class="hint" id="chapInfo"></span>
-          <span style="display:flex;gap:6px"><button class="lg-btn" id="chapFirst5" data-i18n="chap.first5">5 premiers</button><button class="lg-btn" id="chapAll" data-i18n="chap.all">Tous</button></span></div>
+          <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="lg-btn" id="chapFirst5" data-i18n="chap.first5">5 premiers</button><button class="lg-btn" id="chapAll" data-i18n="chap.all">Tous</button><button class="lg-btn" id="chapNone" data-i18n="chap.none">Aucun</button></span></div>
         <div id="chapList" style="max-height:230px;overflow:auto;display:flex;flex-direction:column;gap:5px;margin-top:10px"></div>
       </div>
       <span class="hint" data-i18n="input.tip"></span>
@@ -2041,7 +2049,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.17.0";
+const VERSION = "1.18.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2089,7 +2097,7 @@ const I18N = {
   "listen.phase2":"Phase 2","listen.narrTitle":"Narration de l'histoire",
   "narr.mode":"🎭 Mode","narr.simple":"Voix unique","narr.multi":"Multi-voix","narr.noDialogue":"Ce chapitre ne contient pas de dialogue → narration en voix unique","narr.vhNarration":"📖 Narration seule — pas de dialogue détecté","narr.vhMany":"🎭 ≈{n} personnages dans les dialogues de ce chapitre","narr.vhExact":"🎭 {n} personnages parlent dans ce chapitre","narr.vhOne":"🗣️ Surtout de la narration (≈1 voix)","narr.voice":"🗣️ Voix (navigateur)","narr.preview":"▶ Aperçu","narr.rate":"⏩ Vitesse","narr.scene":"📖 Scène à narrer","narr.play":"▶︎ Narrer la scène","narr.stop":"■ Stop","narr.sample":"Bonjour, voici un aperçu de cette voix pour la narration.","narr.noVoice":"Aucune voix de synthèse disponible sur cet appareil.","narr.noScene":"Aucune scène disponible","narr.noRaw":"Texte non disponible pour la narration de ce livre. Ré-analysez-le pour la réactiver.","narr.needScene":"Choisissez une scène.","narr.segmenting":"Attribution des voix aux personnages…","narr.segErr":"Échec de la segmentation, réessayez.","narr.generating":"Génération de la voix… passage {x}/{m}","narr.genDone":"✓ Chapitre généré ({m} passages) — clique ▶︎ Écouter","narr.genStopped":"⏸ Génération arrêtée ({x}/{m} faits — déjà en cache)","narr.genPartial":"⚠️ Génération incomplète ({n} caractères restants — souvent une limite de débit) — recliquez « Générer la voix » pour finir","narr.gemQuota":"⚠️ Quota Gemini journalier atteint (100/jour sur le tier gratuit). Passez sur OpenAI (segment « Voix » ci-dessus) ou réessayez demain.","narr.segFallback":"Multi-voix indisponible pour cette scène → lecture en voix unique.","narr.done":"Narration terminée.","narr.whoNarrator":"(narrateur)","narr.castHint":"🎚️ Corrigez la voix d'un personnage si besoin (▶ pour écouter). Vos choix sont mémorisés pour ce livre :","narr.voiceSet":"Voix mise à jour ✓","narr.castEmpty":"Personnages détectés après la 1ʳᵉ narration. Avancez votre position de lecture pour révéler plus de personnages.",
   "input.title":"Charger un texte","input.file":"📄 Ouvrir un fichier","input.paste":"ou collez le texte ci-dessous","input.placeholder":"Collez ici le texte du livre ou du chapitre…",
-  "ld.batch":"Analyse du livre — lot {x}/{m}…","epub.chapters":"chapitres","epub.clickAnalyze":"Cliquez « Analyser ».","chap.first5":"5 premiers","chap.all":"Tous","chap.pick":"cochez les chapitres à analyser","chap.titleLabel":"📖 Titre du livre","chap.titlePh":"Laissez vide pour générer le titre automatiquement","chap.titleAuto":"Titre généré automatiquement…","chap.front":"hors récit","chap.allFront":"Cette sélection ne contient que des pages hors récit (table des matières, notice). Cochez de vrais chapitres.","chap.known":"Livre reconnu — {n} chapitre(s) déjà analysé(s)","chap.knownAdd":"cochez les NOUVEAUX chapitres à ajouter (les anciens sont conservés)","chap.done":"déjà analysé","chap.noNew":"Aucun nouveau chapitre coché — réouverture du livre.","merge.done":"✦ Fusion : +{n} chapitre(s) · {e} personnages au total","merge.err":"Échec de la fusion (livre conservé intact)",
+  "ld.batch":"Analyse du livre — lot {x}/{m}…","epub.chapters":"chapitres","epub.clickAnalyze":"Cliquez « Analyser ».","chap.first5":"5 premiers","chap.all":"Tous","chap.none":"Aucun","chap.pick":"cochez les chapitres à analyser","chap.titleLabel":"📖 Titre du livre","chap.titlePh":"Laissez vide pour générer le titre automatiquement","chap.titleAuto":"Titre généré automatiquement…","chap.front":"hors récit","chap.allFront":"Cette sélection ne contient que des pages hors récit (table des matières, notice). Cochez de vrais chapitres.","chap.known":"Livre reconnu — {n} chapitre(s) déjà analysé(s)","chap.knownAdd":"cochez les NOUVEAUX chapitres à ajouter (les anciens sont conservés)","chap.done":"déjà analysé","chap.noNew":"Aucun nouveau chapitre coché — réouverture du livre.","merge.done":"✦ Fusion : +{n} chapitre(s) · {e} personnages au total","merge.err":"Échec de la fusion (livre conservé intact)",
   "log.title":"Journal","log.copy":"📋 Copier","log.download":"⬇️ Télécharger .json","log.copied":"Journal copié dans le presse-papier.","log.downloaded":"Journal téléchargé.","log.noBook":"(aucun livre analysé)","log.calls":"Appels LLM (session)","log.callsLc":"appels","log.total":"Cumul total","log.events":"Événements journalisés",
   "cost.title":"Coûts d'utilisation","cost.budget":"Plafond cumulé ($)","cost.session":"Session","cost.total":"Cumul total","cost.model":"Modèle / provider","cost.cat":"Type","cost.calls":"Appels","cost.cost":"Coût","cost.none":"Aucun appel pour l'instant.","cost.note":"Tarifs en $/Mtok. DeepSeek confirmé ; autres providers approximatifs (ajustables). La voix (Gemini/OpenAI) est facturée aux tokens audio et suivie en € ; le moteur Local reste gratuit.","cost.over":"⚠️ Plafond de {c} $ atteint !","cost.near":"⚠️ 80 % du plafond de coûts atteint.","cat.texte":"texte","cat.voix":"voix","cost.elLoading":"lecture de la consommation…","cost.elNA":"consommation indisponible (clé sans permission user_read).","cost.elTier":"palier","cost.elCredits":"crédits","cost.elReset":"reset le","cost.elReached":"Limite mensuelle atteinte — synthèse vocale premium bloquée jusqu'au reset.",
   "input.tip":"💡 EPUB : choisissez les chapitres à analyser ci-dessus (un livre complet s'analyse par lots). Texte collé : ~40 000 caractères pour un essai rapide. · Formats : TXT, EPUB, PDF (texte) — PDF scannés/images (OCR) bientôt.","input.cancel":"Annuler","input.analyze":"✦ Analyser","pdf.scanned":"PDF scanné ou sans texte extractible. Essayez un EPUB/TXT, ou copiez-collez le texte.",
@@ -2143,7 +2151,7 @@ const I18N = {
   "listen.phase2":"Phase 2","listen.narrTitle":"Story narration",
   "narr.mode":"🎭 Mode","narr.simple":"Single voice","narr.multi":"Multi-voice","narr.noDialogue":"This chapter has no dialogue → single-voice narration","narr.vhNarration":"📖 Narration only — no dialogue detected","narr.vhMany":"🎭 ≈{n} characters in this chapter's dialogue","narr.vhExact":"🎭 {n} characters speak in this chapter","narr.vhOne":"🗣️ Mostly narration (≈1 voice)","narr.voice":"🗣️ Voice (browser)","narr.preview":"▶ Preview","narr.rate":"⏩ Speed","narr.scene":"📖 Scene to narrate","narr.play":"▶︎ Narrate scene","narr.stop":"■ Stop","narr.sample":"Hello, here is a preview of this narration voice.","narr.noVoice":"No speech voice available on this device.","narr.noScene":"No scene available","narr.noRaw":"Text not available for narration of this book. Re-analyze it to re-enable narration.","narr.needScene":"Pick a scene.","narr.segmenting":"Assigning voices to characters…","narr.segErr":"Segmentation failed, try again.","narr.generating":"Generating voice… passage {x}/{m}","narr.genDone":"✓ Chapter generated ({m} passages) — click ▶︎ Listen","narr.genStopped":"⏸ Generation stopped ({x}/{m} done — cached)","narr.genPartial":"⚠️ Incomplete generation ({n} characters left — often a rate limit) — click « Generate voice » again to finish","narr.gemQuota":"⚠️ Gemini daily quota reached (100/day on the free tier). Switch to OpenAI (« Voice » segment above) or try again tomorrow.","narr.segFallback":"Multi-voice unavailable for this scene → single-voice playback.","narr.done":"Narration finished.","narr.whoNarrator":"(narrator)","narr.castHint":"🎚️ Fix a character's voice if needed (▶ to preview). Your choices are saved for this book:","narr.voiceSet":"Voice updated ✓","narr.castEmpty":"Characters are detected after the first narration. Move your reading position forward to reveal more characters.",
   "input.title":"Load a text","input.file":"📄 Open a file","input.paste":"or paste the text below","input.placeholder":"Paste the book or chapter text here…",
-  "ld.batch":"Analyzing the book — batch {x}/{m}…","epub.chapters":"chapters","epub.clickAnalyze":"Click “Analyze”.","chap.first5":"First 5","chap.all":"All","chap.pick":"tick the chapters to analyze","chap.titleLabel":"📖 Book title","chap.titlePh":"Leave empty to auto-generate the title","chap.titleAuto":"Auto-generated title…","chap.front":"front matter","chap.allFront":"This selection only contains non-story pages (table of contents, notice). Tick real chapters.","chap.known":"Book recognized — {n} chapter(s) already analyzed","chap.knownAdd":"tick the NEW chapters to add (existing ones are kept)","chap.done":"already analyzed","chap.noNew":"No new chapter ticked — reopening the book.","merge.done":"✦ Merged: +{n} chapter(s) · {e} characters total","merge.err":"Merge failed (book kept intact)",
+  "ld.batch":"Analyzing the book — batch {x}/{m}…","epub.chapters":"chapters","epub.clickAnalyze":"Click “Analyze”.","chap.first5":"First 5","chap.all":"All","chap.none":"None","chap.pick":"tick the chapters to analyze","chap.titleLabel":"📖 Book title","chap.titlePh":"Leave empty to auto-generate the title","chap.titleAuto":"Auto-generated title…","chap.front":"front matter","chap.allFront":"This selection only contains non-story pages (table of contents, notice). Tick real chapters.","chap.known":"Book recognized — {n} chapter(s) already analyzed","chap.knownAdd":"tick the NEW chapters to add (existing ones are kept)","chap.done":"already analyzed","chap.noNew":"No new chapter ticked — reopening the book.","merge.done":"✦ Merged: +{n} chapter(s) · {e} characters total","merge.err":"Merge failed (book kept intact)",
   "log.title":"Log","log.copy":"📋 Copy","log.download":"⬇️ Download .json","log.copied":"Log copied to clipboard.","log.downloaded":"Log downloaded.","log.noBook":"(no book analyzed)","log.calls":"LLM calls (session)","log.callsLc":"calls","log.total":"Cumulative total","log.events":"Logged events",
   "cost.title":"Usage costs","cost.budget":"Cumulative cap ($)","cost.session":"Session","cost.total":"Cumulative total","cost.model":"Model / provider","cost.cat":"Type","cost.calls":"Calls","cost.cost":"Cost","cost.none":"No calls yet.","cost.note":"Prices in $/Mtok. DeepSeek confirmed; other providers approximate (adjustable). Voice (Gemini/OpenAI) is billed per audio token and tracked in €; the Local engine stays free.","cost.over":"⚠️ Cap of {c} $ reached!","cost.near":"⚠️ 80% of cost cap reached.","cat.texte":"text","cat.voix":"voice","cost.elLoading":"reading usage…","cost.elNA":"usage unavailable (key without user_read permission).","cost.elTier":"tier","cost.elCredits":"credits","cost.elReset":"resets","cost.elReached":"Monthly limit reached — premium voice paused until reset.",
   "input.tip":"💡 EPUB: pick the chapters to analyze above (a full book is analyzed in batches). Pasted text: ~40,000 characters for a quick try. · Formats: TXT, EPUB, PDF (text) — scanned PDFs/images (OCR) coming soon.","input.cancel":"Cancel","input.analyze":"✦ Analyze","pdf.scanned":"Scanned PDF or no extractable text. Try an EPUB/TXT, or paste the text.",
@@ -2322,8 +2330,8 @@ function show(tab){ state.tab=tab; document.body.dataset.tab=tab; // data-tab po
 }
 $("#tabs").addEventListener("click",e=>{ const b=e.target.closest(".tab"); if(b&&!b.disabled) show(b.dataset.view); });
 
-$("#btnInput").onclick=()=>$("#overlay").classList.add("show");
-$("#btnCancel").onclick=()=>$("#overlay").classList.remove("show");
+$("#btnInput").onclick=()=>{ $("#overlay").classList.add("show"); if(typeof updateMiniPlayer==="function") updateMiniPlayer(); };
+$("#btnCancel").onclick=()=>{ $("#overlay").classList.remove("show"); if(typeof updateMiniPlayer==="function") updateMiniPlayer(); };
 $("#btnFile").onclick=()=>$("#fileInput").click();
 $("#fileInput").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; if(!f)return; // reset value → re-sélectionner le MÊME fichier refire bien l'event (bug 15/06)
   if(/\.epub$/i.test(f.name)||f.type==="application/epub+zip"){ try{ $("#textArea").value="⏳ EPUB…"; $("#textArea").style.display="none";
@@ -2358,6 +2366,7 @@ function renderChapPicker(){ const b=pendingBook; if(!b){ $("#chapPicker").style
 }
 $("#chapFirst5").onclick=()=>{ let n=0; $$("#chapList input").forEach(c=>{ if(c.dataset.locked==="1"){c.checked=true;return;} const fm=c.dataset.fm==="1"; c.checked=!fm&&n<5; if(!fm)n++; }); };
 $("#chapAll").onclick=()=>$$("#chapList input").forEach(c=>{c.checked=true;});
+$("#chapNone").onclick=()=>$$("#chapList input").forEach(c=>{ c.checked = c.dataset.locked==="1"; }); // désélectionne tout (sauf chapitres verrouillés) — retour arrière après « Tous »
 $("#btnAnalyze").onclick=()=>{ if(pendingBook){ const pb=pendingBook;
     const closePicker=()=>{ $("#chapPicker").style.display="none"; $("#textArea").style.display=""; $("#overlay").classList.remove("show"); };
     // #4b : livre RECONNU → fusion incrémentale (n'analyser que les NOUVEAUX chapitres cochés)
@@ -4762,7 +4771,8 @@ function updateMiniPlayer(){ const mp=$("#miniPlayer"); if(!mp)return;
   const playing=isPlaying(), FR=_nfr();
   // PERMANENT absolument partout (mandat Quang) : visible dès qu'un chapitre est sélectionné OU pendant une lecture,
   // sur TOUS les onglets ET en plein-texte. En plein-texte, on le remonte en haut pour ne pas chevaucher #immBar (en bas).
-  const visible = ( _listenOn || miniHasChapter() );
+  const loadOpen=$("#overlay")&&$("#overlay").classList.contains("show"); // pop-up « Charger un texte » ouverte → le mini-lecteur masquerait Annuler/Analyser (surtout mobile)
+  const visible = ( _listenOn || miniHasChapter() ) && !loadOpen;
   mp.style.display=visible?"flex":"none"; mp.classList.toggle("mp-imm",!!immersive);
   if(!visible){ document.documentElement.style.setProperty("--mini-space","0px"); return; }
   // état compact/étendu (S.miniExpanded ; défaut compact)
