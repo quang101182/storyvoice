@@ -472,7 +472,7 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.23.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.23.1</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -2079,7 +2079,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.23.0";
+const VERSION = "1.23.1";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2343,7 +2343,7 @@ const PERSO = {
 
 // Défauts 1er lancement (mandat Quang) : multi-voix, ton « Automatique », couleur par personnage, images d'ambiance Auto, vitesse 1.
 // N'affecte QUE les nouveaux utilisateurs : une sauvegarde existante prime via {...DEFAULTS,...d.settings} dans loadStore.
-const DEFAULTS = { uiLang:(navigator.language||"fr").startsWith("en")?"en":"fr", contentLang:"auto", perso:"neutre", persist:true, vol:100, budget:0, provider:"deepseek", narrMode:"multi", narrVoice:"", narrRate:100, listenWhat:"story", listenLang:"orig", listenEngine:"browser", colorSpeakers:true, elTone:"auto", elSpeed:1, elSpeedByVoice:{}, listenAdvOpen:true, budgetResetMode:"never", budgetResetDays:30, budgetResetLast:"", costHistMode:"day", costHistOpen:false, imgMode:"auto", lastBook:null, lastTab:null };
+const DEFAULTS = { uiLang:(navigator.language||"").toLowerCase().startsWith("fr")?"fr":"en",/* international : FR si appareil en français, sinon EN (fallback) — le visiteur peut basculer via le toggle */ contentLang:"auto", perso:"neutre", persist:true, vol:100, budget:0, provider:"deepseek", narrMode:"multi", narrVoice:"", narrRate:100, listenWhat:"story", listenLang:"orig", listenEngine:"browser", colorSpeakers:true, elTone:"auto", elSpeed:1, elSpeedByVoice:{}, listenAdvOpen:true, budgetResetMode:"never", budgetResetDays:30, budgetResetLast:"", costHistMode:"day", costHistOpen:false, imgMode:"auto", lastBook:null, lastTab:null };
 let S = {...DEFAULTS};
 const state = { text:"", analysis:null, readPct:100, len:"moyen", tab:"home", selected:null, currentId:null, mainOnly:false, askHistory:[], rawChapters:[], voiceMap:{}, narrTurns:null, pendingHash:null, readerIdx:0, readerScroll:0, _restoreScroll:false, marks:[], pendingBookFp:null };
 let library = [];
