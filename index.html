@@ -472,7 +472,7 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.23.1</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.23.2</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -799,15 +799,15 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
   <div class="modal">
     <h2>⚙ <span data-i18n="set.title">Réglages</span></h2>
     <div class="body">
-      <div class="set-row">
-        <label data-i18n="set.key">🔑 Clé d'accès</label>
-        <span class="sub" data-i18n="set.keySub">Votre token n'est jamais inclus dans l'application : il est stocké uniquement sur cet appareil.</span>
+      <div class="set-row" id="setRowKey">
+        <label data-i18n="set.key" id="setKeyLabel">🔑 Clé d'accès</label>
+        <span class="sub" id="setKeySub" data-i18n="set.keySub">Votre token n'est jamais inclus dans l'application : il est stocké uniquement sur cet appareil.</span>
         <input type="password" id="apiKey" autocomplete="off" spellcheck="false" placeholder="Bearer token…" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--panel-brd);border-radius:12px;color:var(--txt);font:inherit;padding:10px 12px;margin-top:6px">
         <div style="display:flex;gap:8px;margin-top:8px">
           <button class="btn primary" id="keySave" data-i18n="set.keySave">Enregistrer</button>
           <button class="btn ghost" id="keyClear" data-i18n="set.keyClear">Effacer</button>
         </div>
-        <span class="sub" data-i18n-html="set.keyBuy" style="display:block;margin-top:8px">Vous avez acheté des crédits ? Collez ici le <b>code</b> (commence par <code>sv_</code>) reçu par email.</span>
+        <span class="sub" id="setKeyBuy" data-i18n-html="set.keyBuy" style="display:block;margin-top:8px">Vous avez acheté des crédits ? Collez ici le <b>code</b> (commence par <code>sv_</code>) reçu par email.</span>
       </div>
       <div class="set-row">
         <label data-i18n="set.contact">✉️ Une question ?</label>
@@ -822,7 +822,7 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
         <span class="sub" data-i18n="set.contentLangSub">« Auto » = la langue du livre. Sinon, traduit dans la langue choisie même si le livre est dans une autre langue.</span>
         <div class="seg" id="segContentLang"><button data-v="orig" data-i18n="listen.langOrig">Originale</button><button data-v="fr">Français</button><button data-v="en">English</button></div>
       </div>
-      <div class="set-row">
+      <div class="set-row" id="setRowModel">
         <label data-i18n="set.model">🧠 Modèle d'analyse</label>
         <span class="sub" data-i18n="set.modelSub">Le moteur qui lit le livre (résumés, carte, entités). DeepSeek par défaut ; Groq est plus rapide.</span>
         <select id="selProvider" style="width:100%;background:rgba(0,0,0,.3);border:1px solid var(--panel-brd);border-radius:11px;color:var(--txt);font:inherit;padding:9px 11px;margin-top:6px"></select>
@@ -844,9 +844,9 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
         <span class="sub" data-i18n="img.sub">Une image d'atmosphère générée par livre (couverture + fond coloré dérivé). Anti-spoiler. « Manuel » = bouton ✨ dans l'en-tête ; « Auto » = à l'ouverture d'un livre (selon clé + budget).</span>
         <div class="seg" id="segImgMode" style="margin-top:8px"><button data-v="off" data-i18n="img.off">Désactivé</button><button data-v="manual" data-i18n="img.manual">Manuel</button><button data-v="auto" data-i18n="img.auto">Auto</button></div>
       </div>
-      <div class="set-row">
-        <label data-i18n="set.tools">📊 Suivi & coûts</label>
-        <span class="sub" data-i18n="set.toolsSub">Consultez le détail des coûts d'analyse et le journal technique.</span>
+      <div class="set-row" id="setRowTools">
+        <label data-i18n="set.tools" id="setToolsLabel">📊 Suivi & coûts</label>
+        <span class="sub" data-i18n="set.toolsSub" id="setToolsSub">Consultez le détail des coûts d'analyse et le journal technique.</span>
         <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
           <button class="btn ghost" id="setBtnCost" data-i18n="set.openCost">💰 Coûts</button>
           <button class="btn ghost" id="setBtnLog" data-i18n="set.openLog">🧾 Journal</button>
@@ -2079,7 +2079,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.23.1";
+const VERSION = "1.23.2";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2168,6 +2168,27 @@ function showDemoBar(){ if(!state.demoMode) return; let b=$("#demoBar"); const F
   b.classList.add("show"); }
 function exitDemo(){ state.demoMode=false; state.demoLang=null; DEMO_AUDIO.clear(); listenStop&&listenStop();
   const b=$("#demoBar"); if(b) b.classList.remove("show"); hideDemoCoach(); }
+// Passe PROD : les Réglages s'adaptent au type d'utilisateur. Propriétaire (clé legacy) = tout ;
+// client prépayé (sv_) / visiteur = version épurée (pas de jargon token, pas de modèle LLM, pas de journal technique).
+function prepSettingsForRole(){ const FR=(S.uiLang||"fr")!=="en";
+  const owner=!!getSecret() && !isProKey(); const customer=isProKey(); const visitor=!getSecret();
+  const kl=$("#setKeyLabel"), ks=$("#setKeySub"), ki=$("#apiKey"), kbuy=$("#setKeyBuy");
+  if(kl) kl.textContent = owner ? (FR?"🔑 Clé d'accès":"🔑 Access key") : (FR?"🔑 Code d'accès":"🔑 Access code");
+  if(ks) ks.textContent = owner
+      ? (FR?"Votre token n'est jamais inclus dans l'application : il est stocké uniquement sur cet appareil."
+          :"Your token is never bundled in the app: it's stored only on this device.")
+      : (FR?"Le code reçu par email après votre achat (commence par « sv_ »). Stocké uniquement sur cet appareil."
+          :"The code emailed to you after purchase (starts with “sv_”). Stored only on this device.");
+  if(ki) ki.placeholder = owner ? "Bearer token…" : "sv_…";
+  if(kbuy) kbuy.style.display = owner ? "none" : "block"; // l'invite « collez votre code » : inutile pour le propriétaire
+  const rm=$("#setRowModel"); if(rm) rm.style.display = owner ? "" : "none"; // modèle LLM = propriétaire seulement (géré pour les clients)
+  const rt=$("#setRowTools"), bl=$("#setBtnLog"), bc=$("#setBtnCost"), tl=$("#setToolsLabel"), ts=$("#setToolsSub");
+  if(rt) rt.style.display = visitor ? "none" : ""; // visiteur démo : pas de coûts du tout
+  if(bl) bl.style.display = owner ? "" : "none";   // journal technique = propriétaire seulement
+  if(bc){ bc.style.display = visitor ? "none" : ""; bc.textContent = customer ? (FR?"💰 Mon solde de voix":"💰 My voice balance") : (FR?"💰 Coûts":"💰 Costs"); }
+  if(tl) tl.textContent = customer ? (FR?"💳 Mon solde":"💳 My balance") : (FR?"📊 Suivi & coûts":"📊 Usage & costs");
+  if(ts) ts.textContent = customer ? (FR?"Votre solde de crédits de voix restant.":"Your remaining voice credit balance.")
+                                   : (FR?"Détail des coûts d'analyse et journal technique.":"Analysis cost details and technical log."); }
 const SV_CONTACT_EMAIL="quangapps.dev@gmail.com";
 // Modale de déblocage / activation : packs d'achat + « j'ai déjà un code » + instructions claires (funnel achat→activation).
 function openUnlock(){ const FR=(S.uiLang||"fr")!=="en"; let ov=$("#unlockOverlay");
@@ -2540,7 +2561,7 @@ $("#btnAnalyze").onclick=()=>{ if(pendingBook){ const pb=pendingBook;
 // Mode découverte : assets pré-générés (analyse + audio multi-voix), 0 token / 0 clé. Langue = celle de l'UI.
 $("#btnDemo").onclick=()=>startDemo(S.uiLang==="en"?"en":"fr");
 
-$("#btnSettings").onclick=()=>{ syncSettingsUI(); $("#setOverlay").classList.add("show"); };
+$("#btnSettings").onclick=()=>{ syncSettingsUI(); prepSettingsForRole(); $("#setOverlay").classList.add("show"); };
 if($("#hdrCost")) $("#hdrCost").onclick=()=>openCost(); // bouton coût header → détail complet (overlay « Suivi & coûts »)
 // Clé sv_ (clients/funnel) : défaut voix PREMIUM (OpenAI) au lieu du navigateur natif (médiocre) → découverte avec la belle voix. 1× par user, respecte ensuite son choix. Legacy inchangé. (Dans l'init = s'exécute même pour un store frais sans données.)
 if(isProKey() && !S._svPremiumDefaulted){ if((S.listenEngine||"browser")==="browser") S.listenEngine="openai"; S._svPremiumDefaulted=true; if(S.persist){ try{ saveStore(); }catch(_){} } }
@@ -2549,7 +2570,7 @@ $("#setClose").onclick=()=>$("#setOverlay").classList.remove("show");
 $("#setForget").onclick=()=>confirmAction(t("set.forgetConfirm"),forgetAll);
 $("#keySave").onclick=()=>{ const v=$("#apiKey").value.trim(); setSecret(v); toast(v?t("key.saved"):t("key.cleared")); _svAcct=null; refreshSvAccount().then(()=>renderHdrCost()); }; // clé changée → recharger le solde crédits si sv_
 $("#keyClear").onclick=()=>{ $("#apiKey").value=""; setSecret(""); toast(t("key.cleared")); };
-function requireKey(){ syncSettingsUI(); $("#setOverlay").classList.add("show"); toast(t("key.missing")); const el=$("#apiKey"); if(el) el.focus(); }
+function requireKey(){ syncSettingsUI(); prepSettingsForRole(); $("#setOverlay").classList.add("show"); toast(t("key.missing")); const el=$("#apiKey"); if(el) el.focus(); }
 $("#btnExport").onclick=()=>{
   S.lastBackupAt=Date.now(); S.booksAtBackup=library.length; _backupNudged=false; if(S.persist) saveStore(); // mémorise le backup → coupe le rappel jusqu'à la prochaine croissance/délai
   const data={app:"StoryVoice",version:VERSION,schema:SCHEMA_VERSION,exportedAt:new Date().toISOString(),settings:S,library,usage:cumUsage,byModel:cumByModel};
