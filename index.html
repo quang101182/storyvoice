@@ -453,7 +453,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.19.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.20.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -2055,11 +2055,16 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.19.0";
+const VERSION = "1.20.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
 function setSecret(v){ try{ if(v) localStorage.setItem(CRED_KEY,v); else localStorage.removeItem(CRED_KEY); }catch(_){} }
+// Comptes prépayés/illimités (clé préfixée "sv_") → api-gateway-pro (auth X-Pro-Key, crédits serveur). Sinon mode legacy (gateway normal, Bearer WORKER_SECRET) = inchangé.
+const GATEWAY_PRO = "https://api-gateway-pro.quang101182.workers.dev";
+function isProKey(){ return getSecret().indexOf("sv_")===0; }
+function gwBase(){ return isProKey() ? GATEWAY_PRO : GATEWAY; }
+function authHdr(){ const s=getSecret(); return isProKey() ? {"X-Pro-Key":s} : {"Authorization":"Bearer "+s}; }
 // Modèles d'analyse texte (tous OpenAI-compatibles via le gateway → callLLM inchangé)
 const PROVIDERS = {
   deepseek:{ endpoint:"/api/deepseek", model:"deepseek-chat", label:"DeepSeek V4 — équilibré (défaut)" },
@@ -2566,9 +2571,12 @@ async function callLLM(prompt, maxTokens=4800, kind="analyse"){
   const sec=getSecret(); if(!sec){ requireKey(); throw new Error(t("key.missing")); }
   const t0=Date.now();
   // anti-blocage : _fetchTO abort après 120s (un appel LLM dense peut être long, mais JAMAIS infini) → AbortError remontée proprement aux catch existants (par-lot/analyse)
-  let res; try{ res=await _fetchTO(GATEWAY+PROVIDER.endpoint,{method:"POST",
-    headers:{"Authorization":"Bearer "+sec,"Content-Type":"application/json"},
-    body:JSON.stringify({model:PROVIDER.model,messages:[{role:"user",content:prompt}],temperature:0.3,max_tokens:maxTokens})}, 120000);
+  // Mode prépayé sv_ : le gateway-pro n'expose que DeepSeek (cerveau) + OpenAI (voix) → forcer DeepSeek pour TOUT l'analyse LLM.
+  const _llmEp = isProKey() ? "/api/deepseek" : PROVIDER.endpoint;
+  const _llmModel = isProKey() ? "deepseek-chat" : PROVIDER.model;
+  let res; try{ res=await _fetchTO(gwBase()+_llmEp,{method:"POST",
+    headers:{...authHdr(),"Content-Type":"application/json"},
+    body:JSON.stringify({model:_llmModel,messages:[{role:"user",content:prompt}],temperature:0.3,max_tokens:maxTokens})}, 120000);
   }catch(e){ const msg=(e&&e.name==="AbortError")?("timeout "+kind+" (120s)"):("réseau : "+((e&&e.message)||e)); logEvent({kind,error:msg}); throw new Error(msg); }
   if(!res.ok){ const tx=(await res.text()).slice(0,160); logEvent({kind,error:"HTTP "+res.status+" "+tx}); throw new Error("HTTP "+res.status+" "+tx); }
   const j=await res.json(); recordUsage(kind,j&&j.usage,Date.now()-t0,j&&j.model);
@@ -4061,7 +4069,7 @@ function budgetOk(){ const cap=+S.budget||0; if(cap<=0) return true; return (cum
 function _fetchTO(url, opts, ms){ const ac=new AbortController(); const id=setTimeout(()=>ac.abort(), ms||90000); return fetch(url,{...opts,signal:ac.signal}).finally(()=>clearTimeout(id)); } // fetch avec timeout (anti-blocage)
 // L'étape "ambiance" = tâche courte et générique → Groq (≈0.5s) plutôt que le modèle d'analyse (DeepSeek peut traîner). Indépendant du provider choisi.
 async function callGroqFast(prompt, maxTokens){ const sec=getSecret(); if(!sec) throw new Error("no key");
-  const res=await _fetchTO(GATEWAY+"/api/groq",{ method:"POST", headers:{"Authorization":"Bearer "+sec,"Content-Type":"application/json"},
+  const res=await _fetchTO(gwBase()+"/api/groq",{ method:"POST", headers:{...authHdr(),"Content-Type":"application/json"},
     body:JSON.stringify({ model:"llama-3.3-70b-versatile", messages:[{role:"user",content:prompt}], temperature:0.4, max_tokens:maxTokens||320 }) }, 20000);
   if(!res.ok) throw new Error("groq "+res.status); const j=await res.json();
   return (j&&j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||""; }
@@ -4083,8 +4091,8 @@ function buildImagePrompt(amb){ amb=amb||{};
 
 // Appel fal.ai Flux via gateway. sync_mode:true → image renvoyée en data-URI base64 (évite le CORS canvas).
 async function falGenerateImage(prompt){ const sec=getSecret(); if(!sec) throw new Error("no key");
-  const r=await _fetchTO(GATEWAY+"/api/fal",{ method:"POST",
-    headers:{ "Authorization":"Bearer "+sec, "Content-Type":"application/json" }, // modèle dans le body (pas de header custom → pas de blocage CORS)
+  const r=await _fetchTO(gwBase()+"/api/fal",{ method:"POST",
+    headers:{ ...authHdr(), "Content-Type":"application/json" }, // modèle dans le body (pas de header custom → pas de blocage CORS)
     body:JSON.stringify({ model:"fal-ai/flux/schnell", input:{ prompt, image_size:"square_hd", num_images:1, sync_mode:true, enable_safety_checker:true } }) }, 90000);
   if(!r.ok){ let m=""; try{ m=(await r.json()).error||""; }catch(_){} throw new Error("fal "+r.status+" "+m); }
   const j=await r.json(); const url=j&&j.images&&j.images[0]&&j.images[0].url; if(!url) throw new Error("no image"); return url; }
@@ -4109,7 +4117,7 @@ async function makeThumb(dataUri){ try{ const im=await _loadImg(dataUri); const 
 
 let _imgGenBusy=false;
 async function generateBookImage(opts){ opts=opts||{}; const book=library.find(x=>x.id===state.currentId); if(!book){ if(!opts.auto) toast(t("img.needBook")); return; }
-  if(_imgGenBusy) return; if(!getSecret()){ if(!opts.auto){ requireKey(); } return; }
+  if(_imgGenBusy) return; if(isProKey()) return; /* images (fal) non exposées par le gateway-pro en mode prépayé */ if(!getSecret()){ if(!opts.auto){ requireKey(); } return; }
   if(opts.auto && !budgetOk()) return; // mode auto : ne pas dépasser le plafond
   _imgGenBusy=true; renderCover();
   const _imgN=notifPush({icon:"🎨",title:_nfr()?"Création de l'image d'ambiance":"Creating ambiance image",detail:book.title||"",status:"active"});
@@ -4285,7 +4293,7 @@ function pcmToWavBlob(pcm,sr){ sr=sr||24000; const ch=1,bits=16,br=sr*ch*2,ba=ch
   ws(0,"RIFF"); d.setUint32(4,36+pcm.length,true); ws(8,"WAVE"); ws(12,"fmt "); d.setUint32(16,16,true); d.setUint16(20,1,true); d.setUint16(22,ch,true); d.setUint32(24,sr,true); d.setUint32(28,br,true); d.setUint16(32,ba,true); d.setUint16(34,bits,true); ws(36,"data"); d.setUint32(40,pcm.length,true);
   return new Blob([h,pcm],{type:"audio/wav"}); }
 async function synthGemini(txt,voiceName){ const sec=getSecret();
-  const r=await fetch(GATEWAY+"/api/gemini/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",{method:"POST",headers:{"Authorization":"Bearer "+sec,"Content-Type":"application/json"},
+  const r=await fetch(gwBase()+"/api/gemini/v1beta/models/gemini-2.5-flash-preview-tts:generateContent",{method:"POST",headers:{...authHdr(),"Content-Type":"application/json"},
     body:JSON.stringify({contents:[{parts:[{text:'Dis ceci en '+narrLangFr()+', avec '+toneInstr()+' : "'+txt+'"'}]}],generationConfig:{responseModalities:["AUDIO"],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName}}}}})});
   if(!r.ok){ let body=""; try{ body=await r.text(); }catch(_){}
     if(r.status===429 && /per_?day|per_model_per_day|RESOURCE_EXHAUSTED/i.test(body)) throw new Error("GEMINI_QUOTA_DAY"); // tier GRATUIT Gemini = 100 req/JOUR → inutile de réessayer, basculer sur OpenAI
@@ -4295,12 +4303,12 @@ async function synthGemini(txt,voiceName){ const sec=getSecret();
   const inl=part&&part.inlineData; if(!inl||!inl.data) throw new Error("no audio");
   return pcmToWavBlob(b64ToBytes(inl.data),rateFromMime(inl.mimeType)); }
 async function synthOpenai(txt,voice){ const sec=getSecret();
-  const r=await fetch(GATEWAY+"/api/openai",{method:"POST",headers:{"Authorization":"Bearer "+sec,"Content-Type":"application/json","X-Api-Path":"/v1/audio/speech"},
+  const r=await fetch(gwBase()+"/api/openai",{method:"POST",headers:{...authHdr(),"Content-Type":"application/json","X-Api-Path":"/v1/audio/speech"},
     body:JSON.stringify({model:"gpt-4o-mini-tts",voice,input:txt,response_format:"mp3",instructions:"Lis en "+narrLangFr()+" avec "+toneInstr()+"."})});
   if(!r.ok) throw new Error("HTTP "+r.status); return new Blob([await r.arrayBuffer()],{type:"audio/mpeg"}); }
 // Moteur « Gemini » = voix Chirp 3 HD via Cloud Text-to-Speech (API PRODUCTION, MÊMES voix Gemini, AUCUN cap 100/jour). voiceId court (Charon…) → fr-FR-Chirp3-HD-{id}.
 async function synthGcpTts(txt,voiceName){ const sec=getSecret(); // Chirp 3 HD (clé API) — gardé en repli/historique, plus utilisé par défaut (pas de ton)
-  const r=await fetch(GATEWAY+"/api/gcptts/v1/text:synthesize",{method:"POST",headers:{"Authorization":"Bearer "+sec,"Content-Type":"application/json"},
+  const r=await fetch(gwBase()+"/api/gcptts/v1/text:synthesize",{method:"POST",headers:{...authHdr(),"Content-Type":"application/json"},
     body:JSON.stringify({input:{text:txt},voice:{languageCode:"fr-FR",name:"fr-FR-Chirp3-HD-"+voiceName},audioConfig:{audioEncoding:"MP3"}})});
   if(!r.ok) throw new Error("HTTP "+r.status);
   const j=await r.json(); const b64=j&&j.audioContent; if(!b64) throw new Error("no audio");
@@ -4309,7 +4317,7 @@ async function synthGcpTts(txt,voiceName){ const sec=getSecret(); // Chirp 3 HD 
 async function synthGeminiTts(txt,voiceName){ const sec=getSecret();
   const body={input:{text:txt},voice:{languageCode:"fr-FR",name:voiceName,model_name:"gemini-2.5-flash-tts"},audioConfig:{audioEncoding:"MP3"}};
   if(effectiveTone()!=="neutre") body.input.prompt="Lis ce passage de récit en "+narrLangFr()+" avec "+toneInstr()+".";
-  const r=await fetch(GATEWAY+"/api/gcptts/v1/text:synthesize",{method:"POST",headers:{"Authorization":"Bearer "+sec,"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const r=await fetch(gwBase()+"/api/gcptts/v1/text:synthesize",{method:"POST",headers:{...authHdr(),"Content-Type":"application/json"},body:JSON.stringify(body)});
   if(!r.ok) throw new Error("HTTP "+r.status);
   const j=await r.json(); const b64=j&&j.audioContent; if(!b64) throw new Error("no audio");
   return b64ToBlob(b64,"audio/mpeg"); }
@@ -4319,7 +4327,8 @@ async function elSynthTurn(txt,voiceId){ const key=elKey(voiceId,txt);
   const rec=await idbGet("audio",key); if(rec&&rec.blob){ const url=URL.createObjectURL(rec.blob); elCache.set(key,{url,starts:null}); return {url,starts:null}; }
   const sec=getSecret(); if(!sec){ requireKey(); throw new Error("key"); }
   // Moteur Gemini : ton ≠ neutre → Gemini-TTS (le ton, ~3-7s) ; neutre → Chirp 3 HD (lecture plate identique mais ~0,5s, idée Quang). Clé cache identique (dépend du ton, pas du backend) → 0 régénération.
-  const blob=(S.listenEngine==="gemini")
+  // Mode prépayé sv_ : voix Gemini (gcptts) non exposée par le gateway-pro → forcer OpenAI TTS.
+  const blob=(S.listenEngine==="gemini" && !isProKey())
       ? ((S.elTone&&S.elTone!=="neutre") ? await synthGeminiTts(txt,voiceId) : await synthGcpTts(txt,voiceId))
       : await synthOpenai(txt,voiceId);
   const url=URL.createObjectURL(blob);
