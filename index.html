@@ -307,6 +307,7 @@
   .fam-row{display:flex;gap:24px;justify-content:center;position:relative}
   .fam-node{background:var(--panel);border:1px solid var(--panel-brd);border-radius:12px;padding:9px 14px;min-width:88px;text-align:center;cursor:pointer;backdrop-filter:blur(6px);transition:.15s}
   .fam-node:hover{border-color:var(--cyan);transform:translateY(-2px);box-shadow:0 6px 20px rgba(70,224,255,.15)}
+  #btnTree{min-width:128px;text-align:center} /* largeur figée : « 🌳 Arbre » et « ✦ Constellation » occupent la même place → les boutons suivants (Ajouter/Vivant) ne se décalent pas au toggle */
   .fam-node .fn{font-weight:700;font-size:13px}
   .fam-node .fh{font-size:10.5px;color:var(--txt-faint);margin-top:2px}
   /* Carte vivante — mode ARBRE : mêmes états lumineux que la constellation (locuteur pulse, cités en avant, absents estompés). CSS pur (pas de boucle JS). */
@@ -425,7 +426,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.14.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.14.1</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -556,10 +557,11 @@
         <span class="lg"><span class="dot" style="color:#46e0ff"></span><span data-i18n="leg.person">Personnage</span></span>
         <span class="lg"><span class="dot" style="color:#5dffb0"></span><span data-i18n="leg.place">Lieu</span></span>
         <span class="lg"><span class="dot" style="color:#ffd479"></span><span data-i18n="leg.house">Maison/Groupe</span></span>
-        <button class="lg-btn" id="btnMainOnly">★ <span data-i18n="leg.mainOnly">Principaux</span></button>
+        <!-- 🔒 ORDRE FIGÉ : le toggle Arbre/Constellation + Ajouter + Vivant en TÊTE (toujours visibles) ; « Principaux » (masqué en mode arbre) en DERNIER → son apparition/disparition ne décale plus les boutons fixes (double-tap toggle = toujours le toggle). -->
         <button class="lg-btn" id="btnTree">🌳 <span data-i18n="leg.tree">Arbre</span></button>
         <button class="lg-btn" id="btnAddEntity" title="Ajouter une entité" data-i18n-title="ent.addTitle"><span data-i18n="ent.add">＋ Ajouter</span></button>
         <button class="lg-btn" id="btnLiveMap" title="Carte vivante pendant la lecture" data-i18n-title="live.title"><span data-i18n="live.label">✨ Vivant</span></button>
+        <button class="lg-btn" id="btnMainOnly">★ <span data-i18n="leg.mainOnly">Principaux</span></button>
         <span class="lg" style="color:var(--txt-faint)" id="legHint" data-i18n="leg.hint">Glissez = pivoter · molette = zoom · clic = fiche</span>
       </div>
       <aside class="node-panel" id="nodePanel">
@@ -2025,7 +2027,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.14.0";
+const VERSION = "1.14.1";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -3421,9 +3423,14 @@ $("#famTree").addEventListener("click",e=>{ const ft=$("#famTree"); if(ft&&ft._s
   let fdrag=null, fpinch=null;
   const fd=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY), fm=t=>({x:(t[0].clientX+t[1].clientX)/2,y:(t[0].clientY+t[1].clientY)/2});
   ft.addEventListener("wheel",e=>{ e.preventDefault(); const f=e.deltaY<0?1.1:0.9; famZoom=Math.max(.5,Math.min(2.5,famZoom*f)); applyFamZoom(); },{passive:false});
-  ft.addEventListener("pointerdown",e=>{ if(fpinch)return; try{ft.setPointerCapture(e.pointerId);}catch(_){}; fdrag={x:e.clientX,y:e.clientY,px:famPan.x,py:famPan.y,moved:false}; });
-  ft.addEventListener("pointermove",e=>{ if(!fdrag||fpinch)return; const dx=e.clientX-fdrag.x,dy=e.clientY-fdrag.y; if(Math.abs(dx)+Math.abs(dy)>4)fdrag.moved=true; famPan.x=fdrag.px+dx; famPan.y=fdrag.py+dy; applyFamZoom(); });
-  ft.addEventListener("pointerup",()=>{ if(fdrag&&fdrag.moved) ft._swallow=true; fdrag=null; });
+  ft.addEventListener("pointerdown",e=>{ if(fpinch)return; try{ft.setPointerCapture(e.pointerId);}catch(_){}; fdrag={x:e.clientX,y:e.clientY,px:famPan.x,py:famPan.y,moved:false,target:e.target}; }); // mémorise l'élément pressé (setPointerCapture redirige ensuite la cible du click → on ne peut pas s'y fier)
+  ft.addEventListener("pointermove",e=>{ if(!fdrag||fpinch)return; const dx=e.clientX-fdrag.x,dy=e.clientY-fdrag.y; if(Math.abs(dx)+Math.abs(dy)>8)fdrag.moved=true; famPan.x=fdrag.px+dx; famPan.y=fdrag.py+dy; applyFamZoom(); }); // seuil 8px (touch-friendly : un tap qui bouge un peu n'est plus pris pour un drag)
+  ft.addEventListener("pointerup",e=>{ if(!fdrag)return; const wasDrag=fdrag.moved, tgt=fdrag.target; fdrag=null;
+    if(wasDrag){ ft._swallow=true; return; }
+    // TAP → ouvrir la fiche du nœud. Géré ICI (pas via 'click') car setPointerCapture redirige la cible du click vers le conteneur → clic mort sur l'arbre (bug Quang). On part de l'élément PRESSÉ (fiable), avec elementFromPoint en repli.
+    let n=(tgt&&tgt.closest)?tgt.closest("[data-fid]"):null;
+    if(!n){ try{ const el=document.elementFromPoint(e.clientX,e.clientY); n=(el&&el.closest)?el.closest("[data-fid]"):null; }catch(_){} }
+    if(n){ const tn=(G.nodes||[]).find(x=>x.id===n.dataset.fid); if(tn){ ft._swallow=true; openNode(tn); } } });
   ft.addEventListener("pointercancel",()=>{ fdrag=null; });
   ft.addEventListener("touchstart",e=>{ if(e.touches.length===2){ const m=fm(e.touches); fpinch={d:fd(e.touches),z:famZoom,mx:m.x,my:m.y,px:famPan.x,py:famPan.y}; fdrag=null; e.preventDefault(); } },{passive:false});
   ft.addEventListener("touchmove",e=>{ if(fpinch&&e.touches.length===2){ const d=fd(e.touches); if(fpinch.d>0) famZoom=Math.max(.5,Math.min(2.5,fpinch.z*d/fpinch.d)); const m=fm(e.touches); famPan.x=fpinch.px+(m.x-fpinch.mx); famPan.y=fpinch.py+(m.y-fpinch.my); applyFamZoom(); e.preventDefault(); } },{passive:false});
