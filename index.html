@@ -309,6 +309,12 @@
   .fam-node:hover{border-color:var(--cyan);transform:translateY(-2px);box-shadow:0 6px 20px rgba(70,224,255,.15)}
   .fam-node .fn{font-weight:700;font-size:13px}
   .fam-node .fh{font-size:10.5px;color:var(--txt-faint);margin-top:2px}
+  /* Carte vivante — mode ARBRE : mêmes états lumineux que la constellation (locuteur pulse, cités en avant, absents estompés). CSS pur (pas de boucle JS). */
+  .fam-node.fn-fade{opacity:.34;filter:grayscale(.45)}
+  .fam-node.fn-active{border-color:var(--cyan);box-shadow:0 0 14px rgba(70,224,255,.4)}
+  .fam-node.fn-speaking{border-color:#aef4ff;animation:fnpulse 1.15s ease-in-out infinite;z-index:2}
+  @keyframes fnpulse{0%,100%{box-shadow:0 0 0 2px rgba(174,244,255,.7),0 0 16px rgba(120,220,255,.45)}50%{box-shadow:0 0 0 3px rgba(174,244,255,1),0 0 30px rgba(120,220,255,.85)}}
+  #famSpeakerHint{position:absolute;z-index:6;display:none;transform:translate(-50%,-50%);background:linear-gradient(180deg,rgba(20,24,52,.97),rgba(13,16,40,.95));border:1px solid #aef4ff;border-radius:12px;padding:5px 11px;font-size:12.5px;font-weight:600;color:#dff6ff;box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 14px rgba(120,220,255,.45);cursor:pointer;white-space:nowrap;animation:nbslide .2s ease}
   .fam-svg{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:visible}
   .fam-empty{color:var(--txt-faint);text-align:center;margin-top:48px;font-size:14px}
   .close-x{margin-left:auto;cursor:pointer;color:var(--txt-faint);font-size:22px;line-height:1;background:none;border:0}
@@ -419,7 +425,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.13.2</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.14.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -545,6 +551,7 @@
       <canvas id="constellation"></canvas>
       <div id="mapRevealHint" style="display:none;position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:5;max-width:82%;text-align:center;background:rgba(13,16,40,.86);border:1px solid var(--panel-brd);border-radius:12px;padding:9px 16px;font-size:12.5px;color:var(--txt-dim);backdrop-filter:blur(6px);pointer-events:none"></div>
       <div id="famTree" class="fam-tree" style="display:none"></div>
+      <div id="famSpeakerHint" title="Aller au locuteur"></div>
       <div class="map-legend">
         <span class="lg"><span class="dot" style="color:#46e0ff"></span><span data-i18n="leg.person">Personnage</span></span>
         <span class="lg"><span class="dot" style="color:#5dffb0"></span><span data-i18n="leg.place">Lieu</span></span>
@@ -2018,7 +2025,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.13.2";
+const VERSION = "1.14.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -3294,7 +3301,7 @@ function scanMentions(txt){ const a=state.analysis; if(!a||!txt) return []; cons
     if(decisive) chosen.add(a0.e.id); // sinon ambiguïté irréductible → on n'allume personne pour ce token
   }
   return [...chosen]; }
-function clearScene(){ state._sceneLit=null; state._activeIds=null; state._speakingId=null; state._prevSpkId=null; updateNowSpeaking(); }
+function clearScene(){ state._sceneLit=null; state._activeIds=null; state._speakingId=null; state._prevSpkId=null; updateNowSpeaking(); if(typeof paintTreeLive==="function") paintTreeLive(); }
 // appelé quand une réplique devient ACTIVE (hooks navigateur + premium)
 // → _sceneLit : accumulation anti-spoiler (estompage des absents, joli effet validé Quang)
 // → _activeIds : actifs de la RÉPLIQUE COURANTE (locuteur + cités) → clignotement + nom mis en avant
@@ -3303,7 +3310,7 @@ function onSpeakingTurn(speaker,idx){ if(!state.analysis) return; if(!state._sce
   if(eid && state._speakingId && state._speakingId!==eid) state._prevSpkId=state._speakingId;        // partenaire d'échange = locuteur précédent distinct
   state._speakingId=eid; const act=new Set(); if(eid){ act.add(eid); state._sceneLit.add(eid); }
   try{ const txt=(state.narrTurns&&state.narrTurns[idx]&&state.narrTurns[idx].text)||""; scanMentions(txt).forEach(id=>{ act.add(id); state._sceneLit.add(id); }); }catch(_){}
-  state._activeIds=act; updateNowSpeaking(); }
+  state._activeIds=act; updateNowSpeaking(); if(typeof paintTreeLive==="function") paintTreeLive(); }
 function updateNowSpeaking(){ const el=$("#nowSpeaking"); if(!el) return;
   const on=(S.liveMap!==false)&&(typeof isPlaying==="function")&&isPlaying()&&state._speakingId;
   const e=on?entById(state._speakingId):null; if(!e){ el.style.display="none"; document.documentElement.style.setProperty("--ns-space","0px"); return; }
@@ -3352,7 +3359,8 @@ function renderFamilyTree(){ const host=$("#famTree"); if(!host)return; const fa
   host.innerHTML=`<div class="fam-zoom" id="famZoomWrap"><svg class="fam-svg" id="famSvg"></svg><div class="fam-gens">${rows}</div></div>`;
   famPan={x:0,y:0};   // recentrer l'arbre à chaque (re)rendu
   applyFamZoom();
-  requestAnimationFrame(()=>drawFamLinks(fam)); }
+  requestAnimationFrame(()=>drawFamLinks(fam));
+  if(typeof paintTreeLive==="function") paintTreeLive(); } // applique l'état Carte vivante si une lecture est en cours (le rendu écrase les classes → repeindre)
 let famZoom=1, famPan={x:0,y:0};
 function applyFamZoom(){ const w=$("#famZoomWrap"); if(!w)return;
   w.style.transform="translate("+famPan.x+"px,"+famPan.y+"px) scale("+famZoom+")";
@@ -3360,7 +3368,34 @@ function applyFamZoom(){ const w=$("#famZoomWrap"); if(!w)return;
   const ft=$("#famTree"); if(ft){ const hr=ft.getBoundingClientRect(), wr=w.getBoundingClientRect(), m=70;
     if(wr.left>hr.right-m) famPan.x+=(hr.right-m)-wr.left; else if(wr.right<hr.left+m) famPan.x+=(hr.left+m)-wr.right;
     if(wr.top>hr.bottom-m) famPan.y+=(hr.bottom-m)-wr.top; else if(wr.bottom<hr.top+m) famPan.y+=(hr.top+m)-wr.bottom;
-    w.style.transform="translate("+Math.round(famPan.x)+"px,"+Math.round(famPan.y)+"px) scale("+famZoom+")"; } }
+    w.style.transform="translate("+Math.round(famPan.x)+"px,"+Math.round(famPan.y)+"px) scale("+famZoom+")"; } updateFamSpeakerHint(); }
+// ── Carte vivante — mode ARBRE : décline le surlignage live (locuteur pulse / cités en avant / absents estompés) sur les nœuds DOM, + pastille de bord vers le locuteur HORS CHAMP (pas de caméra auto, décision Quang ; tap = recentrage doux). ──
+function _cssEsc(s){ try{ return CSS.escape(String(s)); }catch(_){ return String(s).replace(/[^a-zA-Z0-9_-]/g,"\\$&"); } }
+function paintTreeLive(){ const host=$("#famTree"); if(!host||host.style.display==="none"||state.tab!=="map")return;
+  const liveOn=(S.liveMap!==false)&&(typeof isPlaying==="function")&&isPlaying()&&!!state._sceneLit&&state._sceneLit.size>0; // size>0 → si rien résolu, arbre INCHANGÉ (dégradation propre, comme la constellation)
+  host.querySelectorAll(".fam-node").forEach(n=>{ const id=n.dataset.fid; n.classList.remove("fn-speaking","fn-active","fn-lit","fn-fade");
+    if(!liveOn) return;
+    if(id===state._speakingId) n.classList.add("fn-speaking");
+    else if(state._activeIds&&state._activeIds.has(id)) n.classList.add("fn-active");
+    else if(state._sceneLit.has(id)) n.classList.add("fn-lit");
+    else n.classList.add("fn-fade"); });
+  updateFamSpeakerHint(); }
+function updateFamSpeakerHint(){ const ft=$("#famTree"), chip=$("#famSpeakerHint"); if(!ft||!chip)return;
+  const liveOn=(S.liveMap!==false)&&(typeof isPlaying==="function")&&isPlaying()&&state._speakingId&&state.mapMode==="tree"&&ft.style.display!=="none"&&state.tab==="map";
+  if(!liveOn){ chip.style.display="none"; return; }
+  const w=$("#famZoomWrap"); let node=null; try{ node=w&&w.querySelector('.fam-node[data-fid="'+_cssEsc(state._speakingId)+'"]'); }catch(_){}
+  if(!node){ chip.style.display="none"; return; }
+  const ftr=ft.getBoundingClientRect(), nr=node.getBoundingClientRect();
+  const cx=nr.left+nr.width/2, cy=nr.top+nr.height/2, m=8;
+  if(cx>=ftr.left+m && cx<=ftr.right-m && cy>=ftr.top+m && cy<=ftr.bottom-m){ chip.style.display="none"; return; } // locuteur visible → l'anneau suffit
+  const e=(typeof entById==="function")?entById(state._speakingId):null; const name=(e&&e.name)||"";
+  const pad=16, px=Math.max(pad,Math.min(ftr.width-pad, cx-ftr.left)), py=Math.max(pad,Math.min(ftr.height-pad, cy-ftr.top));
+  let ar=""; if(cy<ftr.top+m) ar="↑"; else if(cy>ftr.bottom-m) ar="↓"; if(cx<ftr.left+m) ar="←"+ar; else if(cx>ftr.right-m) ar=ar+"→"; if(!ar) ar="•";
+  chip.textContent="🗣 "+name+" "+ar; chip.style.left=px+"px"; chip.style.top=py+"px"; chip.style.display="block"; }
+function famCenterOn(fid){ const w=$("#famZoomWrap"), ft=$("#famTree"); if(!w||!ft||!fid)return; let node=null; try{ node=w.querySelector('.fam-node[data-fid="'+_cssEsc(fid)+'"]'); }catch(_){} if(!node)return;
+  const ftr=ft.getBoundingClientRect(), nr=node.getBoundingClientRect();
+  famPan.x+=(ftr.left+ftr.width/2)-(nr.left+nr.width/2); famPan.y+=(ftr.top+ftr.height/2)-(nr.top+nr.height/2);
+  w.style.transition="transform .35s ease"; applyFamZoom(); setTimeout(()=>{ if(w) w.style.transition=""; },380); }
 function drawFamLinks(fam){ const wrap=$("#famZoomWrap"), svg=$("#famSvg"); if(!wrap||!svg)return;
   const prevT=wrap.style.transform; wrap.style.transform="none";   // calcule les positions à l'échelle 1 (insensible au zoom)
   const wb=wrap.getBoundingClientRect(), pos={};
@@ -3377,8 +3412,9 @@ function setMapMode(mode){ state.mapMode=mode; const tree=mode==="tree";
   const ft=$("#famTree"), cv2=$("#constellation"); if(ft)ft.style.display=tree?"block":"none"; if(cv2)cv2.style.display=tree?"none":"";
   const bt=$("#btnTree"); if(bt){ bt.classList.toggle("on",tree); bt.innerHTML=(tree?"✦ ":"🌳 ")+'<span>'+(tree?t("leg.constellation"):t("leg.tree"))+'</span>'; }
   const bm=$("#btnMainOnly"); if(bm) bm.style.display=tree?"none":""; const lh=$("#legHint"); if(lh) lh.textContent=tree?t("leg.treeHint"):t("leg.hint");
-  if(tree) renderFamilyTree(); else closeNode(); }
+  if(tree) renderFamilyTree(); else { closeNode(); const c=$("#famSpeakerHint"); if(c) c.style.display="none"; } }
 $("#btnTree").onclick=()=>setMapMode(state.mapMode==="tree"?"graph":"tree");
+if($("#famSpeakerHint")) $("#famSpeakerHint").onclick=()=>{ if(state._speakingId) famCenterOn(state._speakingId); }; // tap pastille → recentrer sur le locuteur hors champ
 $("#famTree").addEventListener("click",e=>{ const ft=$("#famTree"); if(ft&&ft._swallow){ ft._swallow=false; return; } /* clic avalé après un déplacement */ const n=e.target.closest("[data-fid]"); if(!n)return; const tn=(G.nodes||[]).find(x=>x.id===n.dataset.fid); if(tn) openNode(tn); });
 // Arbre : déplacement (pan) 1 doigt/souris + pinch 2 doigts (mobile) · molette (PC). Recentré à chaque rendu, garde-fou clamp.
 (function(){ const ft=$("#famTree"); if(!ft)return;
