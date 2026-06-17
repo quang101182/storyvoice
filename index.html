@@ -419,7 +419,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.12.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.12.1</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -447,6 +447,7 @@
     <span id="nbIc" class="nb-ic">🔔</span>
     <span id="nbTxt" class="nb-txt"></span>
     <div id="nbBar" class="nb-bar" style="display:none"><i></i></div>
+    <button id="nbAct" style="display:none;margin-left:8px;padding:4px 11px;font-size:12px;font-weight:600;border-radius:9px;border:1px solid #ffb454;background:rgba(255,180,84,.16);color:#ffd479;cursor:pointer;flex:0 0 auto;white-space:nowrap"></button>
     <span id="nbMore" class="nb-more" aria-hidden="true">▾</span>
   </div>
   <div id="activeBar" style="display:none;padding:12px 20px;border-bottom:1px solid var(--panel-brd);background:linear-gradient(180deg,rgba(93,255,176,.08),transparent)">
@@ -2017,7 +2018,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.12.0";
+const VERSION = "1.12.1";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2242,7 +2243,9 @@ setInterval(()=>{ const p=$("#notifPanel"); if(p&&p.style.display!=="none") pain
 // Bandeau dynamique : événement ACTIF en continu (avec barre) ou dernier événement récent (auto-masqué ~6s)
 let _bannerTimer=null, _bannerDismissed=0;
 function updateNotifBanner(){ const b=$("#notifBanner"); if(!b)return;
-  const ic=$("#nbIc"), tx=$("#nbTxt"), bar=$("#nbBar"); const FR=_nfr();
+  const ic=$("#nbIc"), tx=$("#nbTxt"), bar=$("#nbBar"), act=$("#nbAct"); const FR=_nfr();
+  // (c) bouton de bascule OpenAI : visible tant qu'une offre est en attente, indépendamment du cycle de vie de l'événement. stopPropagation pour ne pas ouvrir l'historique au clic.
+  if(act){ if(state._gemFallbackTurns){ act.textContent=_gemFbLabel(); act.style.display=""; act.onclick=(e)=>{ e.stopPropagation(); switchToOpenAIAndResume(); }; } else act.style.display="none"; }
   const active=notifs.find(n=>n.status==="active");
   let ev=(active && active.id!==_bannerDismissed)?active:null;
   if(!ev){ const last=notifs[0]; if(last && last.id!==_bannerDismissed && (Date.now()-last.ts)<6500) ev=last; }
@@ -2265,7 +2268,7 @@ function updateNotifBanner(){ const b=$("#notifBanner"); if(!b)return;
   b.classList.toggle("nb-active",ev.status==="active"); b.classList.toggle("nb-error",ev.status==="error");
   b.style.display="flex"; b.dataset.evid=ev.id;
   clearTimeout(_bannerTimer);
-  if(ev.status!=="active"){ const eid=ev.id; _bannerTimer=setTimeout(()=>{ _bannerDismissed=eid; updateNotifBanner(); },6000); } } // l'événement fini repasse en état de repos après 6s
+  if(ev.status!=="active" && !state._gemFallbackTurns){ const eid=ev.id; _bannerTimer=setTimeout(()=>{ _bannerDismissed=eid; updateNotifBanner(); },6000); } } // l'événement fini repasse en repos après 6s — SAUF si une bascule OpenAI est en attente (on garde le contexte + le bouton visibles)
 if($("#notifBanner")) $("#notifBanner").onclick=()=>{ const p=$("#notifPanel"); (p&&p.style.display==="none")?openNotif():closeNotif(); };
 
 function show(tab){ state.tab=tab; document.body.dataset.tab=tab; // data-tab posé AVANT resizeMap (sinon canvas mesuré avec le bandeau encore visible sur mobile)
@@ -4200,7 +4203,7 @@ async function pregenElevenMulti(turns){ const sec=getSecret(); if(!sec){ requir
   if(!elevenSub){ elevenSub=await fetchElevenSub(); renderElCredits(); }
   let need=0; for(const tn of turns){ const k=elKey(elMultiCast[tn.speaker]||"",tn.text); if(!elCache.has(k)&&!(await idbGet("audio",k))) need+=tn.text.length; }
   if(elevenSub){ const remain=(elevenSub.character_limit||0)-(elevenSub.character_count||0); if(need>remain){ stat("#listenStatus","⚠️ "+t("el.noCredits").replace("{r}",Math.max(0,remain).toLocaleString())); return; } }
-  elMultiStop=false; state._gemQuota=false; state._elGenerating=true; updatePlayBtn(); const gen=++elGen; const total=turns.length;
+  elMultiStop=false; state._gemQuota=false; state._gemFallbackTurns=null; state._elGenerating=true; updatePlayBtn(); const gen=++elGen; const total=turns.length;
   const bar=$("#genBar"), fill=$("#genBarFill"); if(bar)bar.style.display="block";
   const keyOf=tn=>elKey(elMultiCast[tn.speaker]||elMultiCast["narrateur"]||"",tn.text);
   // état initial du cache par passage (déjà fait = sessions précédentes)
@@ -4245,11 +4248,20 @@ async function pregenElevenMulti(turns){ const sec=getSecret(); if(!sec){ requir
   setTimeout(()=>{ if(bar)bar.style.display="none"; },600);
   await updateCacheBadge(); // état RÉEL → statut honnête
   if(elMultiStop){ stat("#listenStatus",t("narr.genStopped").replace("{x}",doneCount).replace("{m}",total)); notifSet(state._genNotif,{status:"done",icon:"⏹️",title:_nfr()?"Génération arrêtée":"Generation stopped",detail:_chLbl+" · "+doneCount+"/"+total}); }
-  else if(state._gemQuota){ stat("#listenStatus",t("narr.gemQuota")); notifSet(state._genNotif,{status:"error",icon:"⏳",title:_nfr()?"Quota Gemini journalier atteint":"Gemini daily quota reached",detail:_nfr()?"Réessayez demain, ou passez sur OpenAI":"Try again tomorrow, or switch to OpenAI"}); }
-  else if(state._elNeedsGen){ stat("#listenStatus",t("narr.genPartial").replace("{n}",(state._elCostChars||0).toLocaleString())); notifSet(state._genNotif,{status:"error",icon:"⚠️",title:_nfr()?"Génération incomplète":"Generation incomplete",detail:_chLbl+" · "+doneCount+"/"+total}); }
-  else { stat("#listenStatus",t("narr.genDone").replace("{m}",total)); notifSet(state._genNotif,{status:"done",icon:"✅",title:_nfr()?"Audio prêt à écouter":"Audio ready to play",detail:(_chLbl?_chLbl+" · ":"")+total+(_nfr()?" passages":" turns")}); }
+  else if(state._gemQuota){ if(S.listenEngine==="gemini"){ offerGemFallback(turns); statGemFallback("#listenStatus"); } else stat("#listenStatus",t("narr.gemQuota")); notifSet(state._genNotif,{status:"error",icon:"⏳",title:_nfr()?"Gemini indisponible":"Gemini unavailable",detail:S.listenEngine==="gemini"?(_nfr()?"Touchez « Basculer sur OpenAI »":"Tap “Switch to OpenAI”"):(_nfr()?"Réessayez plus tard":"Try again later")}); }
+  else if(state._elNeedsGen){ if(S.listenEngine==="gemini"){ offerGemFallback(turns); statGemFallback("#listenStatus"); } else stat("#listenStatus",t("narr.genPartial").replace("{n}",(state._elCostChars||0).toLocaleString())); notifSet(state._genNotif,{status:"error",icon:"⚠️",title:_nfr()?"Génération incomplète":"Generation incomplete",detail:_chLbl+" · "+doneCount+"/"+total+(S.listenEngine==="gemini"?(_nfr()?" — basculez sur OpenAI":" — switch to OpenAI"):"")}); }
+  else { clearGemFallback(); stat("#listenStatus",t("narr.genDone").replace("{m}",total)); notifSet(state._genNotif,{status:"done",icon:"✅",title:_nfr()?"Audio prêt à écouter":"Audio ready to play",detail:(_chLbl?_chLbl+" · ":"")+total+(_nfr()?" passages":" turns")}); }
   state._genNotif=null;
   updatePlayBtn(); scheduleGenLib(); } // badge vert + bouton « Écouter » UNIQUEMENT si tout est réellement en cache
+// (c) Bascule 1-tap Gemini→OpenAI quand Gemini échoue durablement (panne Cloud TTS / quota). Décision Quang : PAS de switch silencieux (les voix changent par moteur) → bouton OMNIPRÉSENT dans le bandeau notif + dans le statut Écoute. Au clic : change le moteur et REPREND la génération du chapitre sur OpenAI.
+function _gemFbLabel(){ return _nfr()?"🔁 Basculer sur OpenAI":"🔁 Switch to OpenAI"; }
+function offerGemFallback(turns){ state._gemFallbackTurns=(turns&&turns.length)?turns:null; updateNotifBanner(); }
+function clearGemFallback(){ if(state._gemFallbackTurns){ state._gemFallbackTurns=null; updateNotifBanner(); } }
+function statGemFallback(sel){ const lbl=_nfr()?"⏳ Gemini indisponible.":"⏳ Gemini unavailable."; stat(sel, lbl+' <button id="lsGemFb" style="margin-left:6px;padding:3px 10px;font-size:12px;font-weight:600;border-radius:8px;border:1px solid #ffb454;background:rgba(255,180,84,.16);color:#ffd479;cursor:pointer">'+_gemFbLabel()+(_nfr()?" et reprendre":" & resume")+'</button>'); const b=$("#lsGemFb"); if(b) b.onclick=switchToOpenAIAndResume; }
+async function switchToOpenAIAndResume(){ const turns=state._gemFallbackTurns; state._gemFallbackTurns=null;
+  S.listenEngine="openai"; saveStore(); persistBookVoice(); segSet("#segListenEngine","openai"); try{ syncListenUI(); }catch(_){}
+  toast(_nfr()?"Bascule sur OpenAI — reprise…":"Switched to OpenAI — resuming…"); updateNotifBanner();
+  if(turns&&turns.length) await pregenElevenMulti(turns); else { try{ await updateCacheBadge(); }catch(_){} } }
 let elGen=0;
 async function elPlayFrom(i){ const gen=++elGen; const turns=elMultiTurns, cast=elMultiCast; if(!turns) return; const vol=()=>(S.vol!=null?S.vol:100)/100;
   if(elMultiStop||i>=turns.length){ const done=!elMultiStop&&i>=turns.length; stat("#listenStatus","✓ "+t("el.done")); setElPlaying(false); $$("#listenText .kw.on,#listenText .ntr.active").forEach(s=>s.classList.remove("on","active")); if(done) clearResume(); updateCacheBadge(); if(done) autoAdvanceChapter(); return; }
@@ -4325,7 +4337,7 @@ async function listenPlay(){ if(listenBusy)return; if(!state.analysis){ toast(t(
 }
 function listenStop(){ narrPlaying=false; elMultiStop=true; if(window.speechSynthesis)speechSynthesis.cancel(); stopEleven(); setElPlaying(false);
   const pb=$("#listenPause"); if(pb){pb.disabled=true;} setPauseBtn(false);
-  $$("#listenText .kw.on").forEach(s=>s.classList.remove("on")); $$("#listenText .ntr.active").forEach(s=>s.classList.remove("active")); updateFocusBtn(); updateCacheBadge(); clearScene(); }
+  $$("#listenText .kw.on").forEach(s=>s.classList.remove("on")); $$("#listenText .ntr.active").forEach(s=>s.classList.remove("active")); updateFocusBtn(); updateCacheBadge(); clearScene(); if(typeof clearGemFallback==="function") clearGemFallback(); }
 function listenPause(){ if(isPrem()){ elPauseToggle(); setTimeout(()=>{ if(typeof updateMiniPlayer==="function") updateMiniPlayer(); },60); return; }
   if(!window.speechSynthesis)return; if(speechSynthesis.paused){ speechSynthesis.resume(); setPauseBtn(false); } else if(speechSynthesis.speaking){ speechSynthesis.pause(); setPauseBtn(true); } if(typeof updateMiniPlayer==="function") updateMiniPlayer(); }
 
