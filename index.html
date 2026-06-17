@@ -308,6 +308,8 @@
   .fam-node{background:var(--panel);border:1px solid var(--panel-brd);border-radius:12px;padding:9px 14px;min-width:88px;text-align:center;cursor:pointer;backdrop-filter:blur(6px);transition:.15s}
   .fam-node:hover{border-color:var(--cyan);transform:translateY(-2px);box-shadow:0 6px 20px rgba(70,224,255,.15)}
   #btnTree{min-width:128px;text-align:center} /* largeur figée : « 🌳 Arbre » et « ✦ Constellation » occupent la même place → les boutons suivants (Ajouter/Vivant) ne se décalent pas au toggle */
+  #btnFit.fit-pulse{animation:fitpulse 1.4s ease-in-out infinite;border-color:rgba(255,212,121,.6);color:#ffd479} /* pulse = de nouveaux personnages sont apparus, vue à réajuster */
+  @keyframes fitpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,212,121,.0)}50%{box-shadow:0 0 0 3px rgba(255,212,121,.35)}}
   .fam-node .fn{font-weight:700;font-size:13px}
   .fam-node .fh{font-size:10.5px;color:var(--txt-faint);margin-top:2px}
   /* Carte vivante — mode ARBRE : mêmes états lumineux que la constellation (locuteur pulse, cités en avant, absents estompés). CSS pur (pas de boucle JS). */
@@ -407,7 +409,8 @@
     .map-legend{gap:7px 10px !important;font-size:11px !important;left:10px !important;right:10px !important}
     #legHint{display:none !important}
     .map-legend .dot{width:11px !important;height:11px !important}
-    #btnMainOnly span,#btnTree span{display:none}   /* ★ et 🌳/✦ seuls (emoji hors span) — cible TOUT span car buildGraph/setMapMode régénèrent le span SANS data-i18n */
+    #btnMainOnly span,#btnTree span,#btnFit span{display:none}   /* ★ / 🌳✦ / ⤢ seuls (emoji hors span) — cible TOUT span car buildGraph/setMapMode régénèrent le span SANS data-i18n */
+    #btnFit{font-size:14px}   /* ⤢ glyphe un peu plus lisible en icône seule */
     .map-legend #btnTree{min-width:0 !important}     /* mobile : pas de largeur figée (emoji-only = largeur constante, pas de décalage) → les 4 boutons tiennent sur 1 ligne = légende sur 2 lignes au lieu de 3 */
     .map-legend .lg-btn{padding:5px 9px !important}
     /* --- Mobile : carte « qui parle » plus compacte --- */
@@ -427,7 +430,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.14.2</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.15.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -560,6 +563,7 @@
         <span class="lg"><span class="dot" style="color:#ffd479"></span><span data-i18n="leg.house">Maison/Groupe</span></span>
         <!-- 🔒 ORDRE FIGÉ : le toggle Arbre/Constellation + Ajouter + Vivant en TÊTE (toujours visibles) ; « Principaux » (masqué en mode arbre) en DERNIER → son apparition/disparition ne décale plus les boutons fixes (double-tap toggle = toujours le toggle). -->
         <button class="lg-btn" id="btnTree">🌳 <span data-i18n="leg.tree">Arbre</span></button>
+        <button class="lg-btn" id="btnFit" title="Ajuster la vue (tout afficher)" data-i18n-title="leg.fitTitle">⤢ <span data-i18n="leg.fit">Ajuster</span></button>
         <button class="lg-btn" id="btnAddEntity" title="Ajouter une entité" data-i18n-title="ent.addTitle"><span data-i18n="ent.add">＋ Ajouter</span></button>
         <button class="lg-btn" id="btnLiveMap" title="Carte vivante pendant la lecture" data-i18n-title="live.title"><span data-i18n="live.label">✨ Vivant</span></button>
         <button class="lg-btn" id="btnMainOnly">★ <span data-i18n="leg.mainOnly">Principaux</span></button>
@@ -2028,7 +2032,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.14.2";
+const VERSION = "1.15.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2066,7 +2070,7 @@ const I18N = {
   "cost.budgetSub":"Plafond sur le coût TOTAL cumulé (texte + voix). Réinitialisable quand vous voulez.","cost.reset":"↺ Réinitialiser","cost.resetEvery":"↺ Réinit. :","cost.resetConfirm":"Remettre à zéro le compteur de coûts cumulés (texte + voix) ?","cost.resetDone":"Compteur de coûts réinitialisé.",
   "len.short":"Court","len.medium":"Moyen","len.long":"Long",
   "sum.global":"Résumé global","sum.byChapter":"Par chapitre","sum.chapter":"Chapitre","sum.locked":"🔒 lecture plus loin","sum.lockedMsg":"Avancez votre position de lecture pour révéler ce résumé.","sum.renameHint":"Cliquez pour renommer le livre","sum.renamed":"Titre mis à jour ✓","sum.copy":"📋 Copier","sum.export":"⬇️ Exporter","sum.copied":"Résumés copiés ✓","sum.exported":"Résumés exportés ✓",
-  "leg.person":"Personnage","leg.place":"Lieu","leg.house":"Maison/Groupe","leg.mainOnly":"Principaux","leg.hint":"Glissez = pivoter · molette = zoom · clic = fiche","leg.tree":"Arbre","leg.constellation":"Constellation","leg.treeHint":"Arbre généalogique (liens familiaux révélés) · clic = fiche","fam.empty":"Aucun lien familial révélé à cette position de lecture.",
+  "leg.person":"Personnage","leg.place":"Lieu","leg.house":"Maison/Groupe","leg.mainOnly":"Principaux","leg.hint":"Glissez = pivoter · molette = zoom · clic = fiche","leg.tree":"Arbre","leg.constellation":"Constellation","leg.fit":"Ajuster","leg.fitTitle":"Ajuster la vue (tout afficher)","leg.treeHint":"Arbre généalogique (liens familiaux révélés) · clic = fiche","fam.empty":"Aucun lien familial révélé à cette position de lecture.",
   "np.links":"Liens connus","np.noLink":"Aucun lien révélé à cette position.","np.goto":"Voir cette fiche","narr.colorSpeakers":"🎨 Une couleur par personnage",
   "ent.add":"＋ Ajouter","ent.addTitle":"Ajouter une entité (personnage, lieu, groupe)","ent.edit":"Modifier cette entité",
   "live.label":"✨ Vivant","live.title":"Carte vivante : les personnages s'allument quand ils parlent pendant l'écoute",
@@ -2120,7 +2124,7 @@ const I18N = {
   "cost.budgetSub":"Cap on the TOTAL cumulative cost (text + voice). Resettable anytime.","cost.reset":"↺ Reset","cost.resetEvery":"↺ Reset:","cost.resetConfirm":"Reset the cumulative cost counter (text + voice)?","cost.resetDone":"Cost counter reset.",
   "len.short":"Short","len.medium":"Medium","len.long":"Long",
   "sum.global":"Overall summary","sum.byChapter":"By chapter","sum.chapter":"Chapter","sum.locked":"🔒 read further","sum.lockedMsg":"Move your reading position forward to reveal this summary.","sum.renameHint":"Click to rename the book","sum.renamed":"Title updated ✓","sum.copy":"📋 Copy","sum.export":"⬇️ Export","sum.copied":"Summaries copied ✓","sum.exported":"Summaries exported ✓",
-  "leg.person":"Character","leg.place":"Place","leg.house":"House/Group","leg.mainOnly":"Main only","leg.hint":"Drag = rotate · wheel = zoom · click = card","leg.tree":"Tree","leg.constellation":"Constellation","leg.treeHint":"Family tree (revealed family links) · click = card","fam.empty":"No family link revealed at this reading position.",
+  "leg.person":"Character","leg.place":"Place","leg.house":"House/Group","leg.mainOnly":"Main only","leg.hint":"Drag = rotate · wheel = zoom · click = card","leg.tree":"Tree","leg.constellation":"Constellation","leg.fit":"Fit","leg.fitTitle":"Fit view (show all)","leg.treeHint":"Family tree (revealed family links) · click = card","fam.empty":"No family link revealed at this reading position.",
   "np.links":"Known links","np.noLink":"No link revealed at this position.","np.goto":"Open this card","narr.colorSpeakers":"🎨 One color per character",
   "ent.add":"＋ Add","ent.addTitle":"Add an entity (character, place, group)","ent.edit":"Edit this entity",
   "live.label":"✨ Live","live.title":"Live map: characters light up as they speak during listening",
@@ -2287,7 +2291,7 @@ function show(tab){ state.tab=tab; document.body.dataset.tab=tab; // data-tab po
   $$(".view").forEach(v=>v.classList.remove("active"));
   $("#"+({home:"homeView",load:"loadView",read:"readView",sum:"sumView",map:"mapView",listen:"listenView",ask:"askView"})[tab]).classList.add("active");
   $$("#tabs .tab").forEach(b=>b.classList.toggle("active", b.dataset.view===tab));
-  if(tab==="map"){ resizeMap(); if(state.mapMode==="tree") renderFamilyTree(); }
+  if(tab==="map"){ resizeMap(); if(state.mapMode==="tree") renderFamilyTree(); if(typeof scheduleFitCarte==="function") scheduleFitCarte(); } // cadrage auto à l'ouverture de la Carte (fixe le « zoomé sur mobile »)
   if(tab==="ask") renderAsk();
   if(tab==="read") renderReader();
   if(tab==="listen"){ syncListenUI(); }
@@ -3086,6 +3090,10 @@ function setRead(v){ v=Math.max(0,Math.min(100,+v||0)); state.readPct=v;
   syncReadSelect(v); renderSummaries();
   if($("#askPct")) $("#askPct").textContent=v+"%";
   const b=library.find(x=>x.id===state.currentId); if(b){ b.readPct=v; clearTimeout(saveT); saveT=setTimeout(saveStore,500); }
+  // refit intelligent : de nouveaux personnages révélés → recadrer SI la vue n'a pas été déplacée, sinon faire pulser ⤢
+  if(state.tab==="map" && typeof fitCarte==="function" && G.nodes && G.nodes.length){ const vc=G.nodes.filter(visN).length;
+    if(_mapLastVisCount>=0 && vc>_mapLastVisCount){ const moved=(state.mapMode==="tree")?_treeUserMoved:_mapUserMoved; if(moved) pulseFitBtn(true); else setTimeout(()=>{ if(state.tab==="map") fitCarte(); },120); }
+    _mapLastVisCount=vc; }
 }
 // Remplit le sélecteur "J'ai lu jusqu'au : [chapitre]" depuis l'analyse courante
 function populateReadSelect(){ const sel=$("#readChap"); if(!sel) return;
@@ -3120,6 +3128,7 @@ function buildGraph(){ state.askHistory=[]; state.readerIdx=0; state.mapMode="gr
   G.nodes=a.entities.map(e=>{const main=hasImp?((e.importance||"").toLowerCase().indexOf("main")===0||(e.importance||"").toLowerCase().indexOf("princ")===0):true;
     const n={...e,main,x:(Math.random()-.5)*440,y:(Math.random()-.5)*440,z:(Math.random()-.5)*440,vx:0,vy:0,vz:0,ignite:0};byId[e.id]=n;return n;});
   G.edges=(a.relations||[]).filter(r=>byId[r.from]&&byId[r.to]).map(r=>({...r,a:byId[r.from],b:byId[r.to]})); cam={z:1}; rot={x:-0.32,y:0.5}; pan={x:0,y:0};
+  _mapUserMoved=false; _mapLastVisCount=-1; if(typeof scheduleFitCarte==="function") scheduleFitCarte(); // analyse fraîche → cadrer une fois la physique stabilisée
 }
 function visN(n){ if(n.reveal_pct>state.readPct) return false; if(state.mainOnly&&!n.main) return false; return true; }
 function visE(e){return e.reveal_pct<=state.readPct&&visN(e.a)&&visN(e.b);}
@@ -3174,16 +3183,16 @@ let drag=null;
 function pick(px,py){ const r=cv.getBoundingClientRect(); const mx=(px-r.left-r.width/2-pan.x)/cam.z+lastCog.x, my=(py-r.top-r.height/2-pan.y)/cam.z+lastCog.y;
   let best=null,bd=1e9; for(const n of G.nodes){ if(!visN(n))continue; const pr=project(n); const d=Math.hypot(pr.x-mx,pr.y-my); const rad=(n.main?13:6.5)*2.2*pr.sc+8; if(d<rad&&d<bd){bd=d;best=n;} } return best; }
 cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,moved:false,rx:rot.x,ry:rot.y};});
-cv.addEventListener("pointermove",e=>{if(_pinch||!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;rot.y=drag.ry+dx*0.006;rot.x=Math.max(-1.45,Math.min(1.45,drag.rx+dy*0.006));});
+cv.addEventListener("pointermove",e=>{if(_pinch||!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4){drag.moved=true;_mapUserMoved=true;}rot.y=drag.ry+dx*0.006;rot.x=Math.max(-1.45,Math.min(1.45,drag.rx+dy*0.006));});
 cv.addEventListener("pointerup",e=>{if(drag&&!drag.moved){const n=pick(e.clientX,e.clientY);if(n)openNode(n);else closeNode();}drag=null;});
-cv.addEventListener("wheel",e=>{e.preventDefault();const f=e.deltaY<0?1.12:0.89;cam.z=Math.max(.3,Math.min(3.5,cam.z*f));},{passive:false});
+cv.addEventListener("wheel",e=>{e.preventDefault();const f=e.deltaY<0?1.12:0.89;cam.z=Math.max(.3,Math.min(3.5,cam.z*f));_mapUserMoved=true;},{passive:false});
 // Pinch-to-zoom tactile (2 doigts) sur la constellation — mobile
 let _pinch=null; const _tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
 const _tmid=t=>({x:(t[0].clientX+t[1].clientX)/2,y:(t[0].clientY+t[1].clientY)/2});
 const _panMax=()=>{ const r=cv.getBoundingClientRect(); return {x:r.width*0.42,y:r.height*0.42}; };  // garde-fou : le nuage recentré ne sort jamais de plus de ~42% → toujours visible
 cv.addEventListener("touchstart",e=>{ if(e.touches.length===2){ const m=_tmid(e.touches); _pinch={d:_tdist(e.touches),z:cam.z,mx:m.x,my:m.y,px:pan.x,py:pan.y}; drag=null; e.preventDefault(); } },{passive:false});
 cv.addEventListener("touchmove",e=>{ if(_pinch&&e.touches.length===2){ const d=_tdist(e.touches); if(_pinch.d>0) cam.z=Math.max(.3,Math.min(3.5,_pinch.z*d/_pinch.d));
-  const m=_tmid(e.touches), lim=_panMax(); pan.x=Math.max(-lim.x,Math.min(lim.x,_pinch.px+(m.x-_pinch.mx))); pan.y=Math.max(-lim.y,Math.min(lim.y,_pinch.py+(m.y-_pinch.my))); e.preventDefault(); } },{passive:false});
+  const m=_tmid(e.touches), lim=_panMax(); pan.x=Math.max(-lim.x,Math.min(lim.x,_pinch.px+(m.x-_pinch.mx))); pan.y=Math.max(-lim.y,Math.min(lim.y,_pinch.py+(m.y-_pinch.my))); _mapUserMoved=true; e.preventDefault(); } },{passive:false});
 cv.addEventListener("touchend",e=>{ if(e.touches.length<2) _pinch=null; });
 function openNode(n){ state.selected=n; const a=state.analysis;
   $("#npName").textContent=n.name||n.id; $("#npAlias").textContent=n.known_as?("« "+n.known_as+" »"):""; $("#npNote").textContent=n.note||"";
@@ -3415,17 +3424,40 @@ function setMapMode(mode){ state.mapMode=mode; const tree=mode==="tree";
   const ft=$("#famTree"), cv2=$("#constellation"); if(ft)ft.style.display=tree?"block":"none"; if(cv2)cv2.style.display=tree?"none":"";
   const bt=$("#btnTree"); if(bt){ bt.classList.toggle("on",tree); bt.innerHTML=(tree?"✦ ":"🌳 ")+'<span>'+(tree?t("leg.constellation"):t("leg.tree"))+'</span>'; }
   const bm=$("#btnMainOnly"); if(bm) bm.style.display=tree?"none":""; const lh=$("#legHint"); if(lh) lh.textContent=tree?t("leg.treeHint"):t("leg.hint");
-  if(tree) renderFamilyTree(); else { closeNode(); const c=$("#famSpeakerHint"); if(c) c.style.display="none"; } }
+  if(tree) renderFamilyTree(); else { closeNode(); const c=$("#famSpeakerHint"); if(c) c.style.display="none"; }
+  _mapUserMoved=false; _treeUserMoved=false; if(typeof scheduleFitCarte==="function") scheduleFitCarte(); } // changement de mode = cadrage frais du nouveau mode
 $("#btnTree").onclick=()=>setMapMode(state.mapMode==="tree"?"graph":"tree");
 if($("#famSpeakerHint")) $("#famSpeakerHint").onclick=()=>{ if(state._speakingId) famCenterOn(state._speakingId); }; // tap pastille → recentrer sur le locuteur hors champ
+// ── Cadrage auto de la Carte (constellation + arbre) — décision Quang : fit à l'ouverture + bouton ⤢ manuel + refit auto quand de nouveaux persos apparaissent SI la vue n'a pas été déplacée (sinon le bouton ⤢ pulse). ──
+let _mapUserMoved=false, _treeUserMoved=false, _mapLastVisCount=-1;
+function pulseFitBtn(on){ const b=$("#btnFit"); if(b) b.classList.toggle("fit-pulse",!!on); }
+function fitMap(){ if(!G.nodes||!G.nodes.length) return; const W=cv.width,H=cv.height; if(!W||!H) return;
+  const P=[]; for(const n of G.nodes){ if(visN(n)){ const pr=project(n); pr.r=(n.main?13:6.5)*2.2*pr.sc; P.push(pr); } }
+  if(!P.length) return;
+  let cogX=0,cogY=0; for(const pr of P){ cogX+=pr.x; cogY+=pr.y; } cogX/=P.length; cogY/=P.length; // = centre de masse (la vue se centre dessus dans draw())
+  let mx=1,my=1; for(const pr of P){ mx=Math.max(mx,Math.abs(pr.x-cogX)+pr.r); my=Math.max(my,Math.abs(pr.y-cogY)+pr.r); }
+  const padX=52*dpr, padY=52*dpr; // marge pour les libellés
+  let z=Math.min((W/2-padX)/(dpr*mx),(H/2-padY)/(dpr*my)); z=Math.max(.3,Math.min(3.5,z));
+  cam.z=z; pan.x=0; pan.y=0; _mapUserMoved=false; }
+function fitTree(){ const ft=$("#famTree"), w=$("#famZoomWrap"); if(!ft||!w) return; const nodes=w.querySelectorAll(".fam-node"); if(!nodes.length) return;
+  const prevT=w.style.transform; w.style.transform="none"; const wb=w.getBoundingClientRect();
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  nodes.forEach(n=>{ const r=n.getBoundingClientRect(); minX=Math.min(minX,r.left-wb.left); minY=Math.min(minY,r.top-wb.top); maxX=Math.max(maxX,r.right-wb.left); maxY=Math.max(maxY,r.bottom-wb.top); });
+  const ftr=ft.getBoundingClientRect(); w.style.transform=prevT;
+  const bw=Math.max(1,maxX-minX), bh=Math.max(1,maxY-minY), pad=28;
+  let z=Math.min((ftr.width-pad*2)/bw,(ftr.height-pad*2)/bh); z=Math.max(.5,Math.min(2.2,z));
+  famZoom=z; famPan={x:0,y:0}; w.style.transition="transform .3s ease"; applyFamZoom(); setTimeout(()=>{ if(w) w.style.transition=""; },320); _treeUserMoved=false; }
+function fitCarte(){ if(state.tab!=="map") return; if(state.mapMode==="tree") fitTree(); else fitMap(); _mapLastVisCount=(G.nodes||[]).filter(visN).length; pulseFitBtn(false); }
+function scheduleFitCarte(){ [120,1500].forEach(ms=>setTimeout(()=>{ if(state.tab==="map" && !(state.mapMode==="tree"?_treeUserMoved:_mapUserMoved)) fitCarte(); },ms)); } // 2 passes : layout déjà posé (revisite) + après stabilisation physique (analyse fraîche)
+if($("#btnFit")) $("#btnFit").onclick=()=>fitCarte();
 $("#famTree").addEventListener("click",e=>{ const ft=$("#famTree"); if(ft&&ft._swallow){ ft._swallow=false; return; } /* clic avalé après un déplacement */ const n=e.target.closest("[data-fid]"); if(!n)return; const tn=(G.nodes||[]).find(x=>x.id===n.dataset.fid); if(tn) openNode(tn); });
 // Arbre : déplacement (pan) 1 doigt/souris + pinch 2 doigts (mobile) · molette (PC). Recentré à chaque rendu, garde-fou clamp.
 (function(){ const ft=$("#famTree"); if(!ft)return;
   let fdrag=null, fpinch=null;
   const fd=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY), fm=t=>({x:(t[0].clientX+t[1].clientX)/2,y:(t[0].clientY+t[1].clientY)/2});
-  ft.addEventListener("wheel",e=>{ e.preventDefault(); const f=e.deltaY<0?1.1:0.9; famZoom=Math.max(.5,Math.min(2.5,famZoom*f)); applyFamZoom(); },{passive:false});
+  ft.addEventListener("wheel",e=>{ e.preventDefault(); const f=e.deltaY<0?1.1:0.9; famZoom=Math.max(.5,Math.min(2.5,famZoom*f)); _treeUserMoved=true; applyFamZoom(); },{passive:false});
   ft.addEventListener("pointerdown",e=>{ if(fpinch)return; try{ft.setPointerCapture(e.pointerId);}catch(_){}; fdrag={x:e.clientX,y:e.clientY,px:famPan.x,py:famPan.y,moved:false,target:e.target}; }); // mémorise l'élément pressé (setPointerCapture redirige ensuite la cible du click → on ne peut pas s'y fier)
-  ft.addEventListener("pointermove",e=>{ if(!fdrag||fpinch)return; const dx=e.clientX-fdrag.x,dy=e.clientY-fdrag.y; if(Math.abs(dx)+Math.abs(dy)>8)fdrag.moved=true; famPan.x=fdrag.px+dx; famPan.y=fdrag.py+dy; applyFamZoom(); }); // seuil 8px (touch-friendly : un tap qui bouge un peu n'est plus pris pour un drag)
+  ft.addEventListener("pointermove",e=>{ if(!fdrag||fpinch)return; const dx=e.clientX-fdrag.x,dy=e.clientY-fdrag.y; if(Math.abs(dx)+Math.abs(dy)>8){fdrag.moved=true;_treeUserMoved=true;} famPan.x=fdrag.px+dx; famPan.y=fdrag.py+dy; applyFamZoom(); }); // seuil 8px (touch-friendly : un tap qui bouge un peu n'est plus pris pour un drag)
   ft.addEventListener("pointerup",e=>{ if(!fdrag)return; const wasDrag=fdrag.moved, tgt=fdrag.target; fdrag=null;
     if(wasDrag){ ft._swallow=true; return; }
     // TAP → ouvrir la fiche du nœud. Géré ICI (pas via 'click') car setPointerCapture redirige la cible du click vers le conteneur → clic mort sur l'arbre (bug Quang). On part de l'élément PRESSÉ (fiable), avec elementFromPoint en repli.
@@ -3434,7 +3466,7 @@ $("#famTree").addEventListener("click",e=>{ const ft=$("#famTree"); if(ft&&ft._s
     if(n){ const tn=(G.nodes||[]).find(x=>x.id===n.dataset.fid); if(tn){ ft._swallow=true; openNode(tn); } } });
   ft.addEventListener("pointercancel",()=>{ fdrag=null; });
   ft.addEventListener("touchstart",e=>{ if(e.touches.length===2){ const m=fm(e.touches); fpinch={d:fd(e.touches),z:famZoom,mx:m.x,my:m.y,px:famPan.x,py:famPan.y}; fdrag=null; e.preventDefault(); } },{passive:false});
-  ft.addEventListener("touchmove",e=>{ if(fpinch&&e.touches.length===2){ const d=fd(e.touches); if(fpinch.d>0) famZoom=Math.max(.5,Math.min(2.5,fpinch.z*d/fpinch.d)); const m=fm(e.touches); famPan.x=fpinch.px+(m.x-fpinch.mx); famPan.y=fpinch.py+(m.y-fpinch.my); applyFamZoom(); e.preventDefault(); } },{passive:false});
+  ft.addEventListener("touchmove",e=>{ if(fpinch&&e.touches.length===2){ const d=fd(e.touches); if(fpinch.d>0) famZoom=Math.max(.5,Math.min(2.5,fpinch.z*d/fpinch.d)); const m=fm(e.touches); famPan.x=fpinch.px+(m.x-fpinch.mx); famPan.y=fpinch.py+(m.y-fpinch.my); _treeUserMoved=true; applyFamZoom(); e.preventDefault(); } },{passive:false});
   ft.addEventListener("touchend",e=>{ if(e.touches.length<2) fpinch=null; });
 })();
 
