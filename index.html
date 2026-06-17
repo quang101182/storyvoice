@@ -419,7 +419,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.13.1</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.13.2</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -2018,7 +2018,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.13.1";
+const VERSION = "1.13.2";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2273,7 +2273,7 @@ if($("#notifBanner")) $("#notifBanner").onclick=()=>{ const p=$("#notifPanel"); 
 
 function show(tab){ state.tab=tab; document.body.dataset.tab=tab; // data-tab posé AVANT resizeMap (sinon canvas mesuré avec le bandeau encore visible sur mobile)
   if(["read","listen","sum","map","ask"].includes(tab) && S.lastTab!==tab){ S.lastTab=tab; if(S.persist) saveStore(); } // mémorise le dernier onglet (restauré au lancement)
-  if(tab!=="listen"){ const lt=$("#listenText"); if(lt&&lt.classList.contains("immersive")) setImmersive(false); }
+  if(tab!=="listen"){ const lt=$("#listenText"); if(lt&&lt.classList.contains("immersive")){ state._immReturnTab=null; setImmersive(false); } } // navigation volontaire → pas de retour mémorisé
   $$(".view").forEach(v=>v.classList.remove("active"));
   $("#"+({home:"homeView",load:"loadView",read:"readView",sum:"sumView",map:"mapView",listen:"listenView",ask:"askView"})[tab]).classList.add("active");
   $$("#tabs .tab").forEach(b=>b.classList.toggle("active", b.dataset.view===tab));
@@ -4632,10 +4632,12 @@ function setImmersive(on){ const txt=$("#listenText"), bar=$("#immBar"); if(!txt
   // n'était pas EN COURS → mettre en pause PUIS passer en plein écran rendait « Reprendre » non cliquable.
   const ip=$("#immPause"), lp=$("#listenPause"); if(ip&&lp){ ip.disabled=lp.disabled; ip.textContent=lp.textContent; }
   if(typeof updatePlayBtn==="function") updatePlayBtn(); updateFocusBtn(); if(typeof updateMiniPlayer==="function") updateMiniPlayer(); }
-$("#btnImmersive").onclick=()=>setImmersive(!$("#listenText").classList.contains("immersive"));
-$("#immClose").onclick=()=>setImmersive(false);
+// Sortie du plein écran : revenir à l'onglet d'origine si on était entré en plein écran depuis un AUTRE onglet (le ⛶ du mini fait show('listen') à l'entrée). Demande Quang : ne pas atterrir sur Écoute après avoir quitté le plein écran.
+function exitImmersive(){ setImmersive(false); const rt=state._immReturnTab; state._immReturnTab=null; if(rt && rt!=="listen" && state.tab==="listen") show(rt); }
+$("#btnImmersive").onclick=()=>{ if($("#listenText").classList.contains("immersive")){ exitImmersive(); } else { state._immReturnTab=null; setImmersive(true); } }; // entrée depuis l'onglet Écoute → pas de retour à mémoriser
+$("#immClose").onclick=()=>exitImmersive();
 $("#immPlay").onclick=listenPlay; $("#immPause").onclick=listenPause; $("#immStop").onclick=listenStop;
-document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&$("#listenText").classList.contains("immersive")) setImmersive(false); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&$("#listenText").classList.contains("immersive")) exitImmersive(); });
 
 // ════ Mini-lecteur flottant : contrôles d'écoute persistants (visible sur tous les onglets pendant une lecture) ════
 // ── Mini-lecteur « lecteur de poche » : 2 états (compact ⇄ étendu, persisté), pilotable depuis tous les onglets ──
@@ -4704,7 +4706,7 @@ if($("#mpPlay")) $("#mpPlay").onclick=()=>{ if(isPlaying()||_listenOn){ listenPa
 if($("#mpRestart")) $("#mpRestart").onclick=()=>{ if(typeof clearResume==="function")clearResume(); _resumeIdx=0; listenPlay(); setTimeout(updateMiniPlayer,80); }; // « ⟲ depuis le début »
 if($("#mpStop"))  $("#mpStop").onclick=()=>{ listenStop(); };
 // ⛶ = bascule plein-texte : entre depuis n'importe où, et SORT si on y est déjà (le mini remplace #immBar en plein écran)
-if($("#mpGo"))    $("#mpGo").onclick=()=>{ const lt=$("#listenText"); if(lt&&lt.classList.contains("immersive")){ setImmersive(false); } else { show("listen"); setTimeout(()=>{ if($("#listenText")) setImmersive(true); },90); } };
+if($("#mpGo"))    $("#mpGo").onclick=()=>{ const lt=$("#listenText"); if(lt&&lt.classList.contains("immersive")){ exitImmersive(); } else { state._immReturnTab=(state.tab!=="listen")?state.tab:null; show("listen"); setTimeout(()=>{ if($("#listenText")) setImmersive(true); },90); } }; // mémorise l'onglet d'origine → exitImmersive y revient (ne reste pas sur Écoute)
 if($("#mpPrev"))  $("#mpPrev").onclick=()=>{ if(typeof listenNavChapter==="function") listenNavChapter(-1); setTimeout(updateMiniPlayer,80); };
 if($("#mpNext"))  $("#mpNext").onclick=()=>{ if(typeof listenNavChapter==="function") listenNavChapter(1); setTimeout(updateMiniPlayer,80); };
 if($("#mpToggle")) $("#mpToggle").onclick=()=>{ S.miniExpanded=!S.miniExpanded; saveStore(); updateMiniPlayer(); };
