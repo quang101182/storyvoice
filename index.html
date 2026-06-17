@@ -419,7 +419,7 @@
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.12.1</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.13.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -2018,7 +2018,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.12.1";
+const VERSION = "1.13.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -3270,13 +3270,30 @@ function speakerEntity(sp){ const a=state.analysis; if(!a||!a.entities||isNarrat
   if(!e) e=a.entities.find(x=>{const xn=norm(x.name); return xn&&xn.length>2&&(ns.indexOf(xn)>=0||xn.indexOf(ns)>=0);});
   if(!e) e=a.entities.find(x=>(x.known_as||"").split(/[,;]/).some(k=>{k=norm(k); return k&&k.length>2&&(k===ns||ns.indexOf(k)>=0);}));
   return e||null; }
-// entités révélées CITÉES dans un texte (mot entier, ≥3 lettres) — « casting de scène »
-function scanMentions(txt){ const a=state.analysis, out=[]; if(!a||!txt) return out; const low=" "+txt.toLowerCase()+" ";
-  (a.entities||[]).forEach(e=>{ if((e.reveal_pct||0)>state.readPct) return; const names=[e.name].concat((e.known_as||"").split(/[,;]/));
-    for(const nm0 of names){ const nm=(nm0||"").trim(); if(nm.length<3) continue;
-      try{ if(new RegExp("(^|[^\\p{L}])"+escRe(nm.toLowerCase())+"([^\\p{L}]|$)","u").test(low)){ out.push(e.id); break; } }
-      catch(_){ if(low.indexOf(" "+nm.toLowerCase()+" ")>=0){ out.push(e.id); break; } } } });
-  return out; }
+// entités révélées CITÉES dans un texte — « casting de scène ». Phase 2 : matching par SCORE (nom exact > alias > token distinctif
+// d'un nom composé) ; un token distinctif (prénom/nom ≥4 lettres) exige une occurrence CAPITALISÉE dans le texte d'origine (signal de
+// nom propre, anti faux-positif « will »/« hope ») ; DÉSAMBIGUÏSATION : un token matchant ≥2 entités → la meilleure (score, puis
+// importance « main », puis présence en scène) ; égalité irréductible → AUCUN highlight (dégradation propre, anti mauvais-highlight = anti-spoiler).
+function scanMentions(txt){ const a=state.analysis; if(!a||!txt) return []; const orig=" "+String(txt)+" "; const low=" "+String(txt).toLowerCase().replace(/\s+/g," ")+" ";
+  const wordHit=nm=>{ try{ return new RegExp("(^|[^\\p{L}])"+escRe(nm)+"([^\\p{L}]|$)","u").test(low); }catch(_){ return low.indexOf(" "+nm+" ")>=0; } };
+  const capHit=tok=>{ const cap=tok.charAt(0).toUpperCase()+tok.slice(1); try{ return new RegExp("(^|[^\\p{L}])"+escRe(cap)+"([^\\p{L}]|$)","u").test(orig); }catch(_){ return false; } };
+  const inS=e=>!!(state._sceneLit&&state._sceneLit.has(e.id));
+  const revealed=(a.entities||[]).filter(e=>(e.reveal_pct||0)<=state.readPct);
+  const byTok=new Map(); // token (lowercase) -> [{e,score}]
+  const add=(e,raw,score,needCap)=>{ const nm=(raw||"").trim().toLowerCase(); if(nm.length<3) return; if(needCap&&!capHit(nm)) return; if(!wordHit(nm)) return; if(!byTok.has(nm)) byTok.set(nm,[]); byTok.get(nm).push({e,score}); };
+  revealed.forEach(e=>{ add(e,e.name,3,false); (e.known_as||"").split(/[,;\/()]/).forEach(k=>add(e,k,2,false));
+    const parts=String(e.name||"").trim().split(/\s+/); if(parts.length>=2) parts.forEach(w=>{ if(w.length>=4) add(e,w,1,true); }); }); // tokens d'un nom composé seulement (« Eddard Stark » → eddard/stark), pas un nom simple (« Hope »)
+  const chosen=new Set();
+  for(const cands of byTok.values()){
+    if(cands.length===1){ chosen.add(cands[0].e.id); continue; }
+    cands.sort((x,y)=>{ if(y.score!==x.score) return y.score-x.score;
+      const xs=inS(x.e)?1:0, ys=inS(y.e)?1:0; if(ys!==xs) return ys-xs;                 // contexte de scène > importance (le référent probable est dans la scène courante)
+      return (y.e.importance==="main"?1:0)-(x.e.importance==="main"?1:0); });
+    const a0=cands[0], a1=cands[1];
+    const decisive = a0.score>a1.score || inS(a0.e)!==inS(a1.e) || (a0.e.importance==="main")!==(a1.e.importance==="main");
+    if(decisive) chosen.add(a0.e.id); // sinon ambiguïté irréductible → on n'allume personne pour ce token
+  }
+  return [...chosen]; }
 function clearScene(){ state._sceneLit=null; state._activeIds=null; state._speakingId=null; state._prevSpkId=null; updateNowSpeaking(); }
 // appelé quand une réplique devient ACTIVE (hooks navigateur + premium)
 // → _sceneLit : accumulation anti-spoiler (estompage des absents, joli effet validé Quang)
