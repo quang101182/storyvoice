@@ -472,7 +472,7 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.25.5</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.25.6</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -2079,7 +2079,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.25.5";
+const VERSION = "1.25.6";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2979,9 +2979,18 @@ async function consolidateEntities(entities, relations){
 }
 
 // ── Robustesse : verrou « traitement critique en cours » (zéro perte de données) ──
-function setBusy(info){ state.busy=info||null; }
-function clearBusy(){ state.busy=null; }
+function setBusy(info){ state.busy=info||null; try{ updateBusyUI(); }catch(_){} }
+function clearBusy(){ state.busy=null; try{ updateBusyUI(); }catch(_){} }
 function isBusy(){ return !!(state.busy && state.busy.critical); }
+function isGenBusy(){ return !!(state.busy && state.busy.kind==="generate"); }
+// Pendant une GÉNÉRATION : verrouille ce qui l'interromprait (changement de chapitre + réglages de voix). Le bouton Stop reste actif ; les autres onglets restent consultables (n'interrompent pas la génération).
+function updateBusyUI(){ const gen=isGenBusy();
+  ["#listenSource","#mpPrev","#mpNext","#mpRestart","#selListenLang","#elVoice","#elTone","#elModel","#narrVoice"].forEach(s=>{ const el=document.querySelector(s); if(el){ el.disabled=gen; el.style.opacity=gen?"0.45":""; } });
+  ["#segListenEngine","#segNarrMode","#segListenWhat"].forEach(s=>{ const seg=document.querySelector(s); if(seg) seg.querySelectorAll("button").forEach(b=>{ b.disabled=gen; b.style.opacity=gen?"0.45":""; }); });
+  ["#narrCast","#elCast"].forEach(s=>{ const c=document.querySelector(s); if(c){ c.style.opacity=gen?"0.45":""; c.style.pointerEvents=gen?"none":""; } });
+  try{ document.body.classList.toggle("gen-busy",gen); }catch(_){}
+  try{ if(typeof refreshCustomSelects==="function") refreshCustomSelects(); }catch(_){}
+}
 // garde anti-fermeture : si une analyse tourne, le navigateur demande confirmation avant un F5/fermeture (évite la perte)
 window.addEventListener("beforeunload",e=>{ if(isBusy()){ e.preventDefault(); e.returnValue=""; return ""; } });
 
@@ -4633,14 +4642,14 @@ async function pregenElevenMulti(turns){ const sec=getSecret(); if(!sec){ requir
   if(!elevenSub){ elevenSub=await fetchElevenSub(); renderElCredits(); }
   let need=0; for(const tn of turns){ const k=elKey(elMultiCast[tn.speaker]||"",tn.text); if(!elCache.has(k)&&!(await idbGet("audio",k))) need+=tn.text.length; }
   if(elevenSub){ const remain=(elevenSub.character_limit||0)-(elevenSub.character_count||0); if(need>remain){ stat("#listenStatus","⚠️ "+t("el.noCredits").replace("{r}",Math.max(0,remain).toLocaleString())); return; } }
-  elMultiStop=false; state._gemQuota=false; state._gemFallbackTurns=null; state._elGenerating=true; updatePlayBtn(); const gen=++elGen; const total=turns.length;
+  elMultiStop=false; state._gemQuota=false; state._gemFallbackTurns=null; state._elGenerating=true; setBusy({kind:"generate",critical:true,label:(_nfr()?"Génération audio":"Generating audio")}); updatePlayBtn(); const gen=++elGen; const total=turns.length;
   const bar=$("#genBar"), fill=$("#genBarFill"); if(bar)bar.style.display="block";
   const keyOf=tn=>elKey(elMultiCast[tn.speaker]||elMultiCast["narrateur"]||"",tn.text);
   // état initial du cache par passage (déjà fait = sessions précédentes)
   const cachedArr=new Array(total); for(let i=0;i<total;i++){ const k=keyOf(turns[i]); cachedArr[i]=elCache.has(k)||!!(await idbGet("audio",k)); }
   let doneCount=cachedArr.filter(Boolean).length;
   // DOUBLE SÉCURITÉ (demande Quang) : si TOUT est déjà en cache, ne PAS relancer la pré-génération → lecture directe.
-  if(doneCount>=total){ if(bar)bar.style.display="none"; state._elGenerating=false; updatePlayBtn(); await playElevenMulti(turns); return; }
+  if(doneCount>=total){ if(bar)bar.style.display="none"; state._elGenerating=false; clearBusy(); updatePlayBtn(); await playElevenMulti(turns); return; }
   const _chLbl=(function(){ var src=(typeof sourceText==="function")?sourceText():{}; var cn=(typeof curChapterNum==="function")?curChapterNum():null; return (cn?("Ch. "+cn+(src.title?" — "+src.title:"")):(src.title||"")); })();
   state._genNotif=notifPush({icon:"🎙️",title:_nfr()?"Génération audio en cours":"Generating audio",detail:_chLbl,status:"active",progress:{cur:doneCount,total}});
   const upd=tail=>{ if(fill) fill.style.width=Math.round(100*doneCount/Math.max(1,total))+"%"; setLoading("#listenStatus","🎙️ "+t("narr.generating").replace("{x}",doneCount).replace("{m}",total)+(tail||"")); if(state._genNotif) notifSet(state._genNotif,{progress:{cur:doneCount,total}}); };
@@ -4672,7 +4681,7 @@ async function pregenElevenMulti(turns){ const sec=getSecret(); if(!sec){ requir
       if(++noProg>=10) break;               // rate-limit anormalement long → filet de sécurité
       await new Promise(r=>setTimeout(r,backoff)); backoff=Math.min(Math.round(backoff*1.7),25000); } // backoff exponentiel : laisser le 429 retomber
   }
-  if(fill) fill.style.width="100%"; state._elGenerating=false;
+  if(fill) fill.style.width="100%"; state._elGenerating=false; clearBusy();
   $$("#listenText .ntr.active").forEach(s=>s.classList.remove("active"));
   await new Promise(r=>setTimeout(r,500)); try{ elevenSub=await fetchElevenSub(); renderElCredits(); }catch(_){} // refresh crédits FINAL (délai = laisser ElevenLabs mettre son compteur à jour)
   setTimeout(()=>{ if(bar)bar.style.display="none"; },600);
@@ -4967,7 +4976,8 @@ function autoAdvanceChapter(){ if(!state.analysis) return; const chs=state.rawCh
   setTimeout(async()=>{ await updateCacheBadge(); const eleven=isPrem();
     if(eleven && state._elNeedsGen){ const FR=(S.uiLang||"fr")!=="en"; stat("#listenStatus","⏭ "+(FR?"Chapitre suivant prêt — cliquez « Générer la voix »":"Next chapter ready — click « Generate »")); updatePlayBtn(); return; } // JAMAIS de génération auto en enchaînement
     listenPlay(); }, 60); }
-function listenNavChapter(dir){ if(!state.analysis){ toast(t("t.analyzeFirst")); return; } const chs=state.rawChapters||[]; if(!chs.length) return;
+function listenNavChapter(dir){ if(isGenBusy()){ toast(_nfr()?"🎙️ Génération en cours — appuyez sur ■ Stop pour changer de chapitre":"🎙️ Generating — press ■ Stop to change chapter"); return; }
+  if(!state.analysis){ toast(t("t.analyzeFirst")); return; } const chs=state.rawChapters||[]; if(!chs.length) return;
   const what=(S.listenWhat||"story"); const cur=curListenOrigIdx(); const target=cur+dir;
   if(what==="summary" && dir<0 && cur===0){ $("#listenSource").value="g"; afterListenNav(true); return; } // résumé : revenir au résumé global
   if(target<0){ return; } // déjà au début
@@ -5109,7 +5119,8 @@ function updateMiniPlayer(){ const mp=$("#miniPlayer"); if(!mp)return;
 if($("#mpPlay")) $("#mpPlay").onclick=()=>{ if(isPlaying()||_listenOn){ listenPause(); setTimeout(updateMiniPlayer,80); return; }
   if(state.demoMode){ listenPlay(); setTimeout(updateMiniPlayer,80); return; } // démo : audio statique → lecture directe, jamais d'étape « Générer »
   if(isPrem() && state._elNeedsGen){ const FR=_nfr(); const cost=miniGenCost();
-    confirmAction((FR?("Générer l'audio de ce chapitre ? ≈ "+cost):("Generate this chapter's audio? ≈ "+cost)),
+    confirmAction((FR?("Générer l'audio de ce chapitre ? ≈ "+cost+". La génération peut prendre un moment selon la longueur du chapitre : le chapitre et les réglages de voix seront verrouillés pendant (■ Stop pour annuler). Les autres onglets restent consultables.")
+                     :("Generate this chapter's audio? ≈ "+cost+". Generation may take a while depending on chapter length: the chapter and voice settings will be locked during it (■ Stop to cancel). Other tabs stay browsable.")),
       ()=>{ if(typeof listenPlay==="function"){ listenPlay(); setTimeout(updateMiniPlayer,120); } }, null, {yes:t("confirm.generate"),no:t("confirm.no")});
     return; }
   const _r=(typeof getResume==="function")?getResume():null; _resumeIdx=_r?_r.turn:0; // ▶ reprend au signet s'il existe
