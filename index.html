@@ -472,7 +472,7 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.25.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.25.1</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -546,7 +546,7 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
       </div>
     </section>
     <section class="view" id="loadView">
-      <div class="center"><div class="spinner"></div><div class="loader-txt" id="loadTxt"></div></div>
+      <div class="center"><div class="spinner"></div><div class="loader-txt" id="loadTxt"></div><div id="loadWarn" data-i18n="load.warn" style="margin-top:16px;color:#ffb86b;font-size:13px;font-weight:600;max-width:420px;line-height:1.4">⚠️ Traitement en cours — ne fermez pas l'application</div></div>
     </section>
     <section class="view" id="readView">
       <div class="reader-wrap">
@@ -2079,7 +2079,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.25.0";
+const VERSION = "1.25.1";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2264,7 +2264,7 @@ const I18N = {
   "listen.phase2":"Phase 2","listen.narrTitle":"Narration de l'histoire",
   "narr.mode":"🎭 Mode","narr.simple":"Voix unique","narr.multi":"Multi-voix","narr.noDialogue":"Ce chapitre ne contient pas de dialogue → narration en voix unique","narr.vhNarration":"📖 Narration seule — pas de dialogue détecté","narr.vhMany":"🎭 ≈{n} personnages dans les dialogues de ce chapitre","narr.vhExact":"🎭 {n} personnages parlent dans ce chapitre","narr.vhOne":"🗣️ Surtout de la narration (≈1 voix)","narr.voice":"🗣️ Voix (navigateur)","narr.preview":"▶ Aperçu","narr.rate":"⏩ Vitesse","narr.scene":"📖 Scène à narrer","narr.play":"▶︎ Narrer la scène","narr.stop":"■ Stop","narr.sample":"Bonjour, voici un aperçu de cette voix pour la narration.","narr.noVoice":"Aucune voix de synthèse disponible sur cet appareil.","narr.noScene":"Aucune scène disponible","narr.noRaw":"Texte non disponible pour la narration de ce livre. Ré-analysez-le pour la réactiver.","narr.needScene":"Choisissez une scène.","narr.segmenting":"Attribution des voix aux personnages…","narr.segErr":"Échec de la segmentation, réessayez.","narr.generating":"Génération de la voix… passage {x}/{m}","narr.genDone":"✓ Chapitre généré ({m} passages) — clique ▶︎ Écouter","narr.genStopped":"⏸ Génération arrêtée ({x}/{m} faits — déjà en cache)","narr.genPartial":"⚠️ Génération incomplète ({n} caractères restants — souvent une limite de débit) — recliquez « Générer la voix » pour finir","narr.gemQuota":"⚠️ Quota Gemini journalier atteint (100/jour sur le tier gratuit). Passez sur OpenAI (segment « Voix » ci-dessus) ou réessayez demain.","narr.segFallback":"Multi-voix indisponible pour cette scène → lecture en voix unique.","narr.done":"Narration terminée.","narr.whoNarrator":"(narrateur)","narr.castHint":"🎚️ Corrigez la voix d'un personnage si besoin (▶ pour écouter). Vos choix sont mémorisés pour ce livre :","narr.voiceSet":"Voix mise à jour ✓","narr.castEmpty":"Personnages détectés après la 1ʳᵉ narration. Avancez votre position de lecture pour révéler plus de personnages.",
   "input.title":"Charger un texte","input.file":"📄 Ouvrir un fichier","input.paste":"ou collez le texte ci-dessous","input.placeholder":"Collez ici le texte du livre ou du chapitre…",
-  "ld.batch":"Analyse du livre — lot {x}/{m}…","epub.chapters":"chapitres","epub.clickAnalyze":"Cliquez « Analyser ».","chap.first5":"5 premiers","chap.all":"Tous","chap.none":"Aucun","chap.pick":"cochez les chapitres à analyser","chap.titleLabel":"📖 Titre du livre","chap.titlePh":"Laissez vide pour générer le titre automatiquement","chap.titleAuto":"Titre généré automatiquement…","chap.front":"hors récit","chap.allFront":"Cette sélection ne contient que des pages hors récit (table des matières, notice). Cochez de vrais chapitres.","chap.known":"Livre reconnu — {n} chapitre(s) déjà analysé(s)","chap.knownAdd":"cochez les NOUVEAUX chapitres à ajouter (les anciens sont conservés)","chap.done":"déjà analysé","chap.noNew":"Aucun nouveau chapitre coché — réouverture du livre.","merge.done":"✦ Fusion : +{n} chapitre(s) · {e} personnages au total","merge.err":"Échec de la fusion (livre conservé intact)",
+  "ld.batch":"Analyse du livre — lot {x}/{m}…","load.warn":"⚠️ Traitement en cours — ne fermez pas et ne rafraîchissez pas l'application (la reprise est automatique, mais patientez si possible).","epub.chapters":"chapitres","epub.clickAnalyze":"Cliquez « Analyser ».","chap.first5":"5 premiers","chap.all":"Tous","chap.none":"Aucun","chap.pick":"cochez les chapitres à analyser","chap.titleLabel":"📖 Titre du livre","chap.titlePh":"Laissez vide pour générer le titre automatiquement","chap.titleAuto":"Titre généré automatiquement…","chap.front":"hors récit","chap.allFront":"Cette sélection ne contient que des pages hors récit (table des matières, notice). Cochez de vrais chapitres.","chap.known":"Livre reconnu — {n} chapitre(s) déjà analysé(s)","chap.knownAdd":"cochez les NOUVEAUX chapitres à ajouter (les anciens sont conservés)","chap.done":"déjà analysé","chap.noNew":"Aucun nouveau chapitre coché — réouverture du livre.","merge.done":"✦ Fusion : +{n} chapitre(s) · {e} personnages au total","merge.err":"Échec de la fusion (livre conservé intact)",
   "log.title":"Journal","log.copy":"📋 Copier","log.download":"⬇️ Télécharger .json","log.copied":"Journal copié dans le presse-papier.","log.downloaded":"Journal téléchargé.","log.noBook":"(aucun livre analysé)","log.calls":"Appels LLM (session)","log.callsLc":"appels","log.total":"Cumul total","log.events":"Événements journalisés",
   "cost.title":"Coûts d'utilisation","cost.budget":"Plafond cumulé ($)","cost.session":"Session","cost.total":"Cumul total","cost.model":"Modèle / provider","cost.cat":"Type","cost.calls":"Appels","cost.cost":"Coût","cost.none":"Aucun appel pour l'instant.","cost.note":"Tarifs en $/Mtok. DeepSeek confirmé ; autres providers approximatifs (ajustables). La voix (Gemini/OpenAI) est facturée aux tokens audio et suivie en € ; le moteur Local reste gratuit.","cost.over":"⚠️ Plafond de {c} $ atteint !","cost.near":"⚠️ 80 % du plafond de coûts atteint.","cat.texte":"texte","cat.voix":"voix","cost.elLoading":"lecture de la consommation…","cost.elNA":"consommation indisponible (clé sans permission user_read).","cost.elTier":"palier","cost.elCredits":"crédits","cost.elReset":"reset le","cost.elReached":"Limite mensuelle atteinte — synthèse vocale premium bloquée jusqu'au reset.",
   "input.tip":"💡 EPUB : choisissez les chapitres à analyser ci-dessus (un livre complet s'analyse par lots). Texte collé : ~40 000 caractères pour un essai rapide. · Formats : TXT, EPUB, PDF (texte) — PDF scannés/images (OCR) bientôt.","input.cancel":"Annuler","input.analyze":"✦ Analyser","pdf.scanned":"PDF scanné ou sans texte extractible. Essayez un EPUB/TXT, ou copiez-collez le texte.",
@@ -2319,7 +2319,7 @@ const I18N = {
   "listen.phase2":"Phase 2","listen.narrTitle":"Story narration",
   "narr.mode":"🎭 Mode","narr.simple":"Single voice","narr.multi":"Multi-voice","narr.noDialogue":"This chapter has no dialogue → single-voice narration","narr.vhNarration":"📖 Narration only — no dialogue detected","narr.vhMany":"🎭 ≈{n} characters in this chapter's dialogue","narr.vhExact":"🎭 {n} characters speak in this chapter","narr.vhOne":"🗣️ Mostly narration (≈1 voice)","narr.voice":"🗣️ Voice (browser)","narr.preview":"▶ Preview","narr.rate":"⏩ Speed","narr.scene":"📖 Scene to narrate","narr.play":"▶︎ Narrate scene","narr.stop":"■ Stop","narr.sample":"Hello, here is a preview of this narration voice.","narr.noVoice":"No speech voice available on this device.","narr.noScene":"No scene available","narr.noRaw":"Text not available for narration of this book. Re-analyze it to re-enable narration.","narr.needScene":"Pick a scene.","narr.segmenting":"Assigning voices to characters…","narr.segErr":"Segmentation failed, try again.","narr.generating":"Generating voice… passage {x}/{m}","narr.genDone":"✓ Chapter generated ({m} passages) — click ▶︎ Listen","narr.genStopped":"⏸ Generation stopped ({x}/{m} done — cached)","narr.genPartial":"⚠️ Incomplete generation ({n} characters left — often a rate limit) — click « Generate voice » again to finish","narr.gemQuota":"⚠️ Gemini daily quota reached (100/day on the free tier). Switch to OpenAI (« Voice » segment above) or try again tomorrow.","narr.segFallback":"Multi-voice unavailable for this scene → single-voice playback.","narr.done":"Narration finished.","narr.whoNarrator":"(narrator)","narr.castHint":"🎚️ Fix a character's voice if needed (▶ to preview). Your choices are saved for this book:","narr.voiceSet":"Voice updated ✓","narr.castEmpty":"Characters are detected after the first narration. Move your reading position forward to reveal more characters.",
   "input.title":"Load a text","input.file":"📄 Open a file","input.paste":"or paste the text below","input.placeholder":"Paste the book or chapter text here…",
-  "ld.batch":"Analyzing the book — batch {x}/{m}…","epub.chapters":"chapters","epub.clickAnalyze":"Click “Analyze”.","chap.first5":"First 5","chap.all":"All","chap.none":"None","chap.pick":"tick the chapters to analyze","chap.titleLabel":"📖 Book title","chap.titlePh":"Leave empty to auto-generate the title","chap.titleAuto":"Auto-generated title…","chap.front":"front matter","chap.allFront":"This selection only contains non-story pages (table of contents, notice). Tick real chapters.","chap.known":"Book recognized — {n} chapter(s) already analyzed","chap.knownAdd":"tick the NEW chapters to add (existing ones are kept)","chap.done":"already analyzed","chap.noNew":"No new chapter ticked — reopening the book.","merge.done":"✦ Merged: +{n} chapter(s) · {e} characters total","merge.err":"Merge failed (book kept intact)",
+  "ld.batch":"Analyzing the book — batch {x}/{m}…","load.warn":"⚠️ Processing — please don't close or refresh the app (it resumes automatically, but wait if you can).","epub.chapters":"chapters","epub.clickAnalyze":"Click “Analyze”.","chap.first5":"First 5","chap.all":"All","chap.none":"None","chap.pick":"tick the chapters to analyze","chap.titleLabel":"📖 Book title","chap.titlePh":"Leave empty to auto-generate the title","chap.titleAuto":"Auto-generated title…","chap.front":"front matter","chap.allFront":"This selection only contains non-story pages (table of contents, notice). Tick real chapters.","chap.known":"Book recognized — {n} chapter(s) already analyzed","chap.knownAdd":"tick the NEW chapters to add (existing ones are kept)","chap.done":"already analyzed","chap.noNew":"No new chapter ticked — reopening the book.","merge.done":"✦ Merged: +{n} chapter(s) · {e} characters total","merge.err":"Merge failed (book kept intact)",
   "log.title":"Log","log.copy":"📋 Copy","log.download":"⬇️ Download .json","log.copied":"Log copied to clipboard.","log.downloaded":"Log downloaded.","log.noBook":"(no book analyzed)","log.calls":"LLM calls (session)","log.callsLc":"calls","log.total":"Cumulative total","log.events":"Logged events",
   "cost.title":"Usage costs","cost.budget":"Cumulative cap ($)","cost.session":"Session","cost.total":"Cumulative total","cost.model":"Model / provider","cost.cat":"Type","cost.calls":"Calls","cost.cost":"Cost","cost.none":"No calls yet.","cost.note":"Prices in $/Mtok. DeepSeek confirmed; other providers approximate (adjustable). Voice (Gemini/OpenAI) is billed per audio token and tracked in €; the Local engine stays free.","cost.over":"⚠️ Cap of {c} $ reached!","cost.near":"⚠️ 80% of cost cap reached.","cat.texte":"text","cat.voix":"voice","cost.elLoading":"reading usage…","cost.elNA":"usage unavailable (key without user_read permission).","cost.elTier":"tier","cost.elCredits":"credits","cost.elReset":"resets","cost.elReached":"Monthly limit reached — premium voice paused until reset.",
   "input.tip":"💡 EPUB: pick the chapters to analyze above (a full book is analyzed in batches). Pasted text: ~40,000 characters for a quick try. · Formats: TXT, EPUB, PDF (text) — scanned PDFs/images (OCR) coming soon.","input.cancel":"Cancel","input.analyze":"✦ Analyze","pdf.scanned":"Scanned PDF or no extractable text. Try an EPUB/TXT, or paste the text.",
@@ -3249,6 +3249,7 @@ if($("#libToolbar")) $("#libToolbar").addEventListener("click",e=>{ const b=e.ta
 if($("#libSearch")) $("#libSearch").addEventListener("input",()=>renderLibrary());
 async function openCachedBook(b){ if(!b)return;
   if(isBusy()){ try{ toast(_nfr()?"⏳ Analyse en cours — patientez":"⏳ Analysis in progress — please wait"); }catch(_){} return; } // ne pas changer de livre pendant une analyse (intégrité)
+  invalidateSeg(); // changement de livre → annule toute segmentation en vol + oublie l'aperçu précédent
   state.analysis=b.analysis;
   // texte brut : présent en mémoire (session courante) sinon rechargé depuis IndexedDB (après un reload, localStorage ne le contient plus)
   let raw=(b.rawChapters&&b.rawChapters.length)?b.rawChapters:null; if(!raw){ try{ raw=await idbGetRaw(b.id); }catch(_){ raw=null; } if(raw) b.rawChapters=raw; }
@@ -4070,24 +4071,31 @@ function previewListenText(){ const el=$("#listenText"); if(!el)return; const sr
   const note=needsTranslation()?`<div class="hint" style="margin-bottom:8px">${t("listen.willTranslate").replace("{l}",S.listenLang==="fr"?"français":"English")}</div>`:"";
   el.innerHTML=note+`<div class="ntr"><span class="ntr-tx">${wordHtml(src.text)}</span></div>`; ensureSegPreview(); }
 let _segPreviewing=false;
+let _segGen=0; // jeton de version de la segmentation : incrémenté à CHAQUE changement de contexte (scène/langue/mode/livre)
+// Annule proprement une segmentation en vol et oublie l'aperçu courant → un résultat tardif n'écrasera plus le mauvais contexte, et le bon se relancera.
+function invalidateSeg(){ _segGen++; state.segPreview=null; }
 // Pré-segmentation SILENCIEUSE de l'aperçu en multi-voix : montre QUI PARLE dans le transcript du bas AVANT de cliquer « Générer » (comme le ton auto). Mémorisé (cache IDB "seg", partagé avec la génération) → instantané ensuite. Langue d'origine uniquement (la trad se fait à la génération).
 async function ensureSegPreview(){ if(_segPreviewing||isPlaying()) return;
   if(!(isMulti()||isPremMulti())||needsTranslation()||!getSecret()) return;
   const text=(sourceText().text)||""; if(!text) return;
+  const myGen=_segGen; // si le contexte change pendant un await, ce scan s'auto-annule (n'écrit RIEN sur le mauvais contexte)
   const sel0=($("#listenSource")||{}).value, what0=(S.listenWhat||"story");
-  const same=()=> !isPlaying() && (($("#listenSource")||{}).value===sel0) && ((S.listenWhat||"story")===what0) && (isMulti()||isPremMulti());
+  const same=()=> myGen===_segGen && !isPlaying() && (($("#listenSource")||{}).value===sel0) && ((S.listenWhat||"story")===what0) && (isMulti()||isPremMulti());
   const ckey=contentHash("seg|"+text.slice(0,SEG_MAX_CHARS));
   const rec=await idbGet("seg",ckey);
+  if(myGen!==_segGen) return; // contexte changé pendant la lecture du cache → abandon propre
   if(rec&&rec.turns&&rec.turns.length){ state.segPreview={key:ckey,turns:rec.turns}; if(same()){ renderListenText(rec.turns); updateMultiAvail(); } return; }
   _segPreviewing=true; const _FRseg=(S.uiLang||"fr")!=="en"; const _chSeg=(sourceText().title||"");
   // v1.5.0 : le scan « qui parle » s'affiche dans le BANDEAU NOTIF du haut (plus de note dans le transcript)
   const _segN=notifPush({icon:"🎭",title:_FRseg?"Détection des voix…":"Detecting voices…",detail:_chSeg,status:"active"});
-  try{ const turns=await segmentScene(text,true); if(turns&&turns.length){ state.segPreview={key:ckey,turns}; if(same()){ renderListenText(turns); updateMultiAvail(); }
+  try{ const turns=await segmentScene(text,true);
+      if(myGen!==_segGen){ notifSet(_segN,{status:"done",icon:"🎭",title:_FRseg?"Détection des voix annulée (changement)":"Voice detection cancelled (context changed)",detail:_chSeg}); return; } // contexte changé → ne PAS écraser state.segPreview
+      if(turns&&turns.length){ state.segPreview={key:ckey,turns}; if(same()){ renderListenText(turns); updateMultiAvail(); }
       const nb=new Set(turns.map(x=>x.speaker||"narrateur")).size;
       notifSet(_segN,{status:"done",icon:"🎭",title:_FRseg?(nb+(nb>1?" voix détectées":" voix détectée")):(nb+(nb>1?" voices detected":" voice detected")),detail:_chSeg}); }
     else notifSet(_segN,{status:"done",icon:"🎭",title:_FRseg?"Détection des voix terminée":"Voice detection done",detail:_chSeg}); }
   catch(_){ notifSet(_segN,{status:"done",icon:"🎭",title:_FRseg?"Détection des voix interrompue":"Voice detection stopped",detail:_chSeg}); }
-  finally{ _segPreviewing=false; } }
+  finally{ _segPreviewing=false; if(myGen!==_segGen){ try{ previewListenText(); }catch(_){} } } } // le contexte a changé pendant le scan → rafraîchir pour relancer la segmentation du NOUVEAU contexte
 function highlightWord(idx,charIndex){ const blk=$("#ntr"+idx); if(!blk)return; const spans=blk.querySelectorAll(".kw"); let target=null;
   for(let k=0;k<spans.length;k++){ if((+spans[k].dataset.o)<=charIndex) target=spans[k]; else break; }
   blk.querySelectorAll(".kw.on").forEach(s=>s.classList.remove("on")); if(target){ target.classList.add("on"); maybeScroll(target); } }
@@ -4904,8 +4912,8 @@ function syncListenUI(){ loadVoices();
   if(eleven){ elPopulateModels(); syncElSpeed(); (async()=>{ if(elVoicesList===null){ elVoicesList=(await fetchElevenVoices())||[]; } elPopulateVoices(); syncElSpeed(); renderElCredits(); if(!elevenSub){ elevenSub=await fetchElevenSub(); renderElCredits(); } renderElEstimate(); refreshCustomSelects(); })(); } // refresh APRÈS peuplement async des voix (sinon label dropdown vide)
   previewListenText(); renderElEstimate(); updateCacheBadge(); updatePlayBtn(); scheduleGenLib(); refreshCustomSelects(); renderToneSuggestion(); applyAdvVoice();
 }
-$("#segListenWhat").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; S.listenWhat=b.dataset.v; state.narrTurns=null; saveStore(); listenStop(); syncListenUI(); };
-$("#selListenLang").onchange=e=>{ S.listenLang=e.target.value; _transGen++; state.narrTurns=null; saveStore(); listenStop(); syncListenUI(); };
+$("#segListenWhat").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; S.listenWhat=b.dataset.v; state.narrTurns=null; invalidateSeg(); saveStore(); listenStop(); syncListenUI(); };
+$("#selListenLang").onchange=e=>{ S.listenLang=e.target.value; _transGen++; state.narrTurns=null; invalidateSeg(); saveStore(); listenStop(); syncListenUI(); };
 $("#segListenEngine").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; S.listenEngine=b.dataset.v; saveStore(); persistBookVoice(); listenStop(); syncListenUI(); };
 // ⚙ Bloc « Réglages voix » repliable (persisté S.listenAdvOpen) — résumé affiché quand replié
 function renderAdvVoiceSummary(){ const el=$("#advVoiceSummary"); if(!el)return; if(S.listenAdvOpen!==false){ el.textContent=""; return; }
@@ -4915,15 +4923,15 @@ function renderAdvVoiceSummary(){ const el=$("#advVoiceSummary"); if(!el)return;
   el.textContent="— "+parts.filter(Boolean).join(" · "); }
 function applyAdvVoice(){ const open=S.listenAdvOpen!==false; const b=$("#advVoiceBody"); if(b)b.style.display=open?"":"none"; const c=$("#advVoiceChevron"); if(c)c.textContent=open?"▾":"▸"; renderAdvVoiceSummary(); }
 if($("#advVoiceToggle")) $("#advVoiceToggle").onclick=()=>{ S.listenAdvOpen=!(S.listenAdvOpen!==false); saveStore(); applyAdvVoice(); };
-$("#listenSource").onchange=()=>{ state.narrTurns=null; listenStop(); persistListenSel(); previewListenText(); updateCastVisibility(); renderElEstimate(); updateCacheBadge(); if(typeof updateListenNavBtns==="function")updateListenNavBtns(); syncReaderToListen(); };
+$("#listenSource").onchange=()=>{ state.narrTurns=null; invalidateSeg(); listenStop(); persistListenSel(); previewListenText(); updateCastVisibility(); renderElEstimate(); updateCacheBadge(); if(typeof updateListenNavBtns==="function")updateListenNavBtns(); syncReaderToListen(); };
 // #R8 — navigation Précédent/Suivant en Écoute (chapitres CHARGÉS). « Suivant » révèle le chapitre suivant si besoin (écouter = avancer la lecture) puis lit.
 function curListenOrigIdx(){ const sel=$("#listenSource"); if(!sel) return -1; const v=sel.value; if((S.listenWhat||"story")==="summary"){ return (v==="g"||v==="")?-1:+v.slice(1); } return v===""?-1:+v; }
 // #R8-bis (Quang) : changer de chapitre = SÉLECTIONNER seulement, JAMAIS lancer l'audio (l'utilisateur décide). L'enchaînement auto se fait en FIN de chapitre (autoAdvanceChapter).
-function afterListenNav(){ state.narrTurns=null; listenStop(); persistListenSel(); previewListenText(); updateCastVisibility(); renderElEstimate(); updateCacheBadge(); updateListenNavBtns(); refreshCustomSelects(); syncReaderToListen(); }
+function afterListenNav(){ state.narrTurns=null; invalidateSeg(); listenStop(); persistListenSel(); previewListenText(); updateCastVisibility(); renderElEstimate(); updateCacheBadge(); updateListenNavBtns(); refreshCustomSelects(); syncReaderToListen(); }
 function autoAdvanceChapter(){ if(!state.analysis) return; const chs=state.rawChapters||[]; const cur=curListenOrigIdx(); const target=cur+1; if(target>chs.length-1) return; // fin du contenu chargé → on s'arrête
   const what=(S.listenWhat||"story"); const tc=chs[target]; if(tc&&(tc.start_pct||0)>state.readPct){ const after=chs[target+1]; const end=after?Math.max(0,(after.start_pct||0)-1):100; setRead(Math.max(state.readPct,end)); }
   populateListenSource(); const sel=$("#listenSource"); if(sel) sel.value=(what==="summary")?("c"+target):String(target);
-  state.narrTurns=null; persistListenSel(); previewListenText(); updateCastVisibility(); updateListenNavBtns(); refreshCustomSelects();
+  state.narrTurns=null; invalidateSeg(); persistListenSel(); previewListenText(); updateCastVisibility(); updateListenNavBtns(); refreshCustomSelects();
   setTimeout(async()=>{ await updateCacheBadge(); const eleven=isPrem();
     if(eleven && state._elNeedsGen){ const FR=(S.uiLang||"fr")!=="en"; stat("#listenStatus","⏭ "+(FR?"Chapitre suivant prêt — cliquez « Générer la voix »":"Next chapter ready — click « Generate »")); updatePlayBtn(); return; } // JAMAIS de génération auto en enchaînement
     listenPlay(); }, 60); }
