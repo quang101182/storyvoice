@@ -475,7 +475,7 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.26.2</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.26.3</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -2081,7 +2081,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.26.2";
+const VERSION = "1.26.3";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2137,8 +2137,8 @@ async function startDemo(lang){
     state.analysis=m.analysis[L];
     state.rawChapters=m.chapters.map(c=>({text:c["text_"+L], num:c.num, start_pct:c.start_pct, title:c["title_"+L]}));
     state.voiceMap={}; state.marks=[]; state.currentId="__demo__"; state.narrTurns=null; state.pendingBookFp=null; state._elNeedsGen=false;
-    S.listenEngine="openai"; S.narrMode="multi"; S.listenWhat="story"; S.listenLang="orig";
-    enableTabs(); if(typeof setActiveBook==="function") setActiveBook(); buildGraph(); setRead(100); renderSummaries();
+    S.listenEngine="gemini"; S.narrMode="multi"; S.listenWhat="story"; S.listenLang="orig"; S.elVoice="Charon"; S.elTone="auto"; S.miniExpanded=true; // démo = vitrine figée sur le meilleur (Gemini, multi-voix, ton auto), mini agrandi
+    enableTabs(); if(typeof setActiveBook==="function") setActiveBook(); buildGraph(); setRead(100); renderSummaries(); if(typeof syncListenUI==="function") syncListenUI();
     try{ const ls=$("#listenSource"); if(ls&&ls.options.length) ls.selectedIndex=0; }catch(_){} // la démo démarre au chapitre 1 (la scène du Roi)
     if(typeof renderHdrCost==="function") renderHdrCost(); // masque le badge coût € (gratuit en démo)
     show("map");
@@ -4199,6 +4199,7 @@ function chapterSpeakingCount(text){ if(!text||!state.analysis||!state.analysis.
   return seen.size; }
 // Grise « Multi-voix » si le chapitre n'a AUCUN dialogue + AFFICHE une info rapide « N personnages / narration » à la sélection (demande Quang : savoir AVANT de générer). Story uniquement.
 function updateMultiAvail(){ const seg=$("#segNarrMode"); if(!seg) return; const mb=seg.querySelector('button[data-v="multi"]'); if(!mb) return;
+  if(state.demoMode){ mb.disabled=false; mb.classList.remove("seg-off"); mb.title=""; const vh0=$("#voiceHint"); if(vh0) vh0.textContent=""; return; } // démo = multi-voix par construction (turns pré-segmentés) → ne jamais dégrader en « voix unique »
   const story=(S.listenWhat||"story")==="story"; const txt=story?((sourceText().text)||""):"";
   // RÉGRESSION FIX : ne RIEN dégrader tant que le texte n'est pas chargé (boot/reload : rawChapters arrive de l'IDB en async).
   // Sans ce garde-fou, un appel précoce avec txt="" → hasDialogue=false → écrasait le choix « Multi-voix » en « simple » + saveStore (perdu au reload, et la pré-segmentation ne se lançait plus → texte affiché brut).
@@ -4946,6 +4947,18 @@ function enhanceSelect(sel){ if(!sel||sel.dataset.enh)return; sel.dataset.enh="1
   sel.addEventListener("change",updateBtn); sel.__cselRefresh=updateBtn; updateBtn(); }
 function enhanceAllSelects(){ injectCselCSS(); document.querySelectorAll("select").forEach(enhanceSelect); }
 function refreshCustomSelects(){ document.querySelectorAll("select").forEach(s=>{ if(s.__cselWrap) s.__cselWrap.style.display=(s.style.display==="none")?"none":""; if(s.__cselRefresh)s.__cselRefresh(); }); } // re-synchronise la visibilité du wrapper (un select repassé en caché ne doit pas laisser un « — »)
+// Verrou DÉMO : en mode découverte, les réglages audio sont figés sur « le meilleur » (Gemini + multi-voix + ton auto, audio pré-généré).
+// Seules la VITESSE, la navigation chapitres et Play restent actives. Entièrement RÉVERSIBLE hors démo (client clé sv_ = tout actif).
+function applyDemoLock(){
+  const lock=!!state.demoMode; const FR=(S.uiLang||"fr")!=="en";
+  const eng=$("#segListenEngine"); // moteur : Gemini mis en avant, Local + OpenAI grisés
+  if(eng){ eng.style.pointerEvents=lock?"none":""; eng.title=lock?(FR?"Démo : voix Gemini (procurez-vous des crédits pour choisir)":"Demo: Gemini voice (get credits to choose)"):"";
+    eng.querySelectorAll("button").forEach(b=>{ const keep=b.dataset.v==="gemini"; b.disabled=lock&&!keep; b.style.opacity=(lock&&!keep)?"0.4":""; }); }
+  ["segListenWhat","segNarrMode","selListenLang","elVoice","elPreview","elTone","colorSpeakers"].forEach(id=>{ const el=$("#"+id); if(!el)return;
+    el.style.pointerEvents=lock?"none":""; el.style.opacity=lock?"0.55":"";
+    if("disabled" in el) el.disabled=lock;
+    if(el.querySelectorAll) el.querySelectorAll("button,select,input").forEach(c=>{ c.disabled=lock; }); });
+}
 function syncListenUI(){ loadVoices();
   segSet("#segListenWhat",S.listenWhat||"story"); {const sl=$("#selListenLang"); if(sl)sl.value=S.listenLang||"orig";} segSet("#segListenEngine",S.listenEngine||"browser"); segSet("#segNarrMode",S.narrMode||"simple");
   $("#narrRate").value=S.narrRate||100; $("#narrRatePct").textContent=((S.narrRate||100)/100).toFixed(1)+"×";
@@ -4962,7 +4975,7 @@ function syncListenUI(){ loadVoices();
   const hint=$("#listenLangHint"); if(hint) hint.textContent=needsTranslation()?t("listen.transOn"):"";
   updateCastVisibility();
   if(eleven){ elPopulateModels(); syncElSpeed(); (async()=>{ if(elVoicesList===null){ elVoicesList=(await fetchElevenVoices())||[]; } elPopulateVoices(); syncElSpeed(); renderElCredits(); if(!elevenSub){ elevenSub=await fetchElevenSub(); renderElCredits(); } renderElEstimate(); refreshCustomSelects(); })(); } // refresh APRÈS peuplement async des voix (sinon label dropdown vide)
-  previewListenText(); renderElEstimate(); updateCacheBadge(); updatePlayBtn(); scheduleGenLib(); refreshCustomSelects(); renderToneSuggestion(); applyAdvVoice();
+  previewListenText(); renderElEstimate(); updateCacheBadge(); updatePlayBtn(); scheduleGenLib(); refreshCustomSelects(); renderToneSuggestion(); applyAdvVoice(); applyDemoLock();
 }
 $("#segListenWhat").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; S.listenWhat=b.dataset.v; state.narrTurns=null; invalidateSeg(); saveStore(); listenStop(); syncListenUI(); };
 $("#selListenLang").onchange=e=>{ S.listenLang=e.target.value; _transGen++; state.narrTurns=null; invalidateSeg(); saveStore(); listenStop(); syncListenUI(); };
