@@ -472,7 +472,7 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.25.2</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.25.3</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -2079,7 +2079,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.25.2";
+const VERSION = "1.25.3";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2580,18 +2580,38 @@ $("#setForget").onclick=()=>confirmAction(t("set.forgetConfirm"),forgetAll);
 $("#keySave").onclick=()=>{ const v=$("#apiKey").value.trim(); setSecret(v); toast(v?t("key.saved"):t("key.cleared")); _svAcct=null; refreshSvAccount().then(()=>renderHdrCost()); }; // clé changée → recharger le solde crédits si sv_
 $("#keyClear").onclick=()=>{ $("#apiKey").value=""; setSecret(""); toast(t("key.cleared")); };
 function requireKey(){ syncSettingsUI(); prepSettingsForRole(); $("#setOverlay").classList.add("show"); toast(t("key.missing")); const el=$("#apiKey"); if(el) el.focus(); }
-$("#btnExport").onclick=()=>{
+$("#btnExport").onclick=async()=>{
   S.lastBackupAt=Date.now(); S.booksAtBackup=library.length; _backupNudged=false; if(S.persist) saveStore(); // mémorise le backup → coupe le rappel jusqu'à la prochaine croissance/délai
-  const data={app:"StoryVoice",version:VERSION,schema:SCHEMA_VERSION,exportedAt:new Date().toISOString(),settings:S,library,usage:cumUsage,byModel:cumByModel};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); const url=URL.createObjectURL(blob);
+  try{ toast(_nfr()?"Préparation de la sauvegarde…":"Preparing backup…"); }catch(_){}
+  // EXPORT AUTONOME (migration PC↔mobile, mandat « ne rien perdre ») : le texte intégral vit en IndexedDB depuis v1.24.0 et n'est en mémoire que pour le livre ouvert
+  // → on le RECHARGE depuis IDB pour TOUS les livres + on embarque les segmentations « qui parle » et les images générées (évite tout recoût après import).
+  const libFull=[];
+  for(const b of library){ const e={...b};
+    if(!(e.rawChapters&&e.rawChapters.length)){ try{ const raw=await idbGetRaw(b.id); if(raw&&raw.length) e.rawChapters=raw; }catch(_){} }
+    libFull.push(e); }
+  let seg=[],img=[],audio=[]; try{ seg=await idbGetAll("seg"); }catch(_){} try{ img=await idbGetAll("img"); }catch(_){}
+  // audio généré (Blob) → base64 pour être autonome dans le fichier (mandat Quang « les audios qui vont avec »). Peut être volumineux.
+  try{ const ar=await idbGetAll("audio"); for(const rec of ar){ if(!rec||!rec.key) continue; const b64=rec.blob?await blobToB64(rec.blob):""; audio.push({key:rec.key,bookId:rec.bookId||"_",starts:rec.starts||null,meta:rec.meta||null,mime:(rec.blob&&rec.blob.type)||"audio/mpeg",b64}); } }catch(_){}
+  let ledgers=null; try{ ledgers={ ttscost:localStorage.getItem("storyvoice.ttscost")||"", costdaily:localStorage.getItem("storyvoice.costdaily")||"" }; }catch(_){}
+  const data={app:"StoryVoice",version:VERSION,schema:SCHEMA_VERSION,exportedAt:new Date().toISOString(),settings:S,library:libFull,usage:cumUsage,byModel:cumByModel,idb:{seg,img,audio},ledgers};
+  const blob=new Blob([JSON.stringify(data)],{type:"application/json"}); const url=URL.createObjectURL(blob);
   const a=document.createElement("a"); a.href=url; a.download="storyvoice-backup-"+new Date().toISOString().slice(0,10)+".json"; a.click(); URL.revokeObjectURL(url); toast(t("data.exported")); };
 $("#btnImport").onclick=()=>$("#importFile").click();
 $("#importFile").onchange=e=>{ const f=e.target.files[0]; if(!f){return;} const r=new FileReader();
-  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d||!Array.isArray(d.library)) throw new Error("format");
+  r.onload=async()=>{ try{ const d=JSON.parse(r.result); if(!d||!Array.isArray(d.library)) throw new Error("format");
     if(d.settings) S={...DEFAULTS,...d.settings};
     const all=[...(d.library||[]),...library], byTitle=new Map();
     all.forEach(b=>{ if(!b||!b.analysis) return; const k=(b.title||"").toLowerCase().trim()||b.id; const ex=byTitle.get(k); if(!ex||(b.savedAt||0)>(ex.savedAt||0)) byTitle.set(k,b); });
     library=[...byTitle.values()].sort((a,b)=>(b.savedAt||0)-(a.savedAt||0)).slice(0,12);
+    // RESTAURE le texte intégral en IndexedDB pour chaque livre importé (sinon narration vide après import = la régression qu'on corrige)
+    for(const b of library){ if(b && b.id && b.rawChapters && b.rawChapters.length){ try{ await idbPutRaw(b.id, b.rawChapters); }catch(_){} } }
+    // RESTAURE segmentations + images + AUDIO généré (base64 → Blob)
+    if(d.idb){ if(Array.isArray(d.idb.seg)) for(const rec of d.idb.seg){ if(rec&&rec.key){ try{ await idbPut("seg",rec); }catch(_){} } }
+               if(Array.isArray(d.idb.img)) for(const rec of d.idb.img){ if(rec&&rec.key){ try{ await idbPut("img",rec); }catch(_){} } }
+               if(Array.isArray(d.idb.audio)) for(const rec of d.idb.audio){ if(rec&&rec.key&&rec.b64){ const blob=b64ToBlob(rec.b64,rec.mime); if(blob){ try{ await idbPut("audio",{key:rec.key,blob,starts:rec.starts||null,bookId:rec.bookId||"_",meta:rec.meta||null}); }catch(_){} } } } }
+    // RESTAURE l'affichage du coût (ledgers locaux) seulement s'ils sont absents ici (ne clobbe pas un appareil déjà actif)
+    if(d.ledgers){ try{ if(d.ledgers.ttscost && !localStorage.getItem("storyvoice.ttscost")) localStorage.setItem("storyvoice.ttscost",d.ledgers.ttscost);
+                        if(d.ledgers.costdaily && !localStorage.getItem("storyvoice.costdaily")) localStorage.setItem("storyvoice.costdaily",d.ledgers.costdaily); }catch(_){} }
     if(d.usage){ ["calls","pt","ct","cost"].forEach(k=>cumUsage[k]=Math.max(cumUsage[k]||0,d.usage[k]||0)); }
     if(d.byModel){ for(const k in d.byModel){ const a=cumByModel[k]||(cumByModel[k]={calls:0,pt:0,ct:0,cost:0}), b=d.byModel[k]; ["calls","pt","ct","cost"].forEach(f=>a[f]=Math.max(a[f]||0,b[f]||0)); } }
     S.persist=true; saveStore(); applyI18n(); syncSettingsUI(); syncVolUI(); renderLibrary(); toast(t("data.imported").replace("{n}",library.length));
@@ -3297,6 +3317,9 @@ function idbGetRaw(bookId){ if(!bookId) return Promise.resolve(null); return idb
 function idbPutDraft(rec){ return idbPut("draft",{...(rec||{}),key:"current"}); }
 function idbGetDraft(){ return idbGet("draft","current"); }
 function idbDelDraft(){ return idbOpen().then(db=>new Promise(res=>{ try{ const rq=db.transaction("draft","readwrite").objectStore("draft").delete("current"); rq.onsuccess=()=>res(true); rq.onerror=()=>res(false); }catch(_){ res(false); } })).catch(()=>false); }
+// conversion Blob <-> base64 pour l'export/import autonome (l'audio généré est stocké en Blob → JSON.stringify le perdrait)
+function blobToB64(blob){ return new Promise((res)=>{ try{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]||""); r.onerror=()=>res(""); r.readAsDataURL(blob); }catch(_){ res(""); } }); }
+function b64ToBlob(b64,mime){ try{ const bin=atob(b64||""); const len=bin.length; const arr=new Uint8Array(len); for(let i=0;i<len;i++) arr[i]=bin.charCodeAt(i); return new Blob([arr],{type:mime||"audio/mpeg"}); }catch(_){ return null; } }
 function idbDelByBook(bookId){ if(!bookId) return Promise.resolve(); return idbOpen().then(db=>Promise.all(IDB_STORES.map(store=>new Promise(res=>{ try{
   const os=db.transaction(store,"readwrite").objectStore(store), rq=os.index("bookId").openCursor(IDBKeyRange.only(bookId));
   rq.onsuccess=e=>{ const cur=e.target.result; if(cur){ cur.delete(); cur.continue(); } else res(true); }; rq.onerror=()=>res(false);
