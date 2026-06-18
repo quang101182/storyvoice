@@ -472,7 +472,7 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.24.1</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.25.0</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -2079,7 +2079,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.24.1";
+const VERSION = "1.25.0";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2535,7 +2535,8 @@ function renderChapPicker(){ const b=pendingBook; if(!b){ $("#chapPicker").style
 $("#chapFirst5").onclick=()=>{ let n=0; $$("#chapList input").forEach(c=>{ if(c.dataset.locked==="1"){c.checked=true;return;} const fm=c.dataset.fm==="1"; c.checked=!fm&&n<5; if(!fm)n++; }); };
 $("#chapAll").onclick=()=>$$("#chapList input").forEach(c=>{c.checked=true;});
 $("#chapNone").onclick=()=>$$("#chapList input").forEach(c=>{ c.checked = c.dataset.locked==="1"; }); // désélectionne tout (sauf chapitres verrouillés) — retour arrière après « Tous »
-$("#btnAnalyze").onclick=()=>{ if(pendingBook){ const pb=pendingBook;
+$("#btnAnalyze").onclick=()=>{ if(isBusy()){ try{ toast(_nfr()?"⏳ Analyse déjà en cours — patientez":"⏳ Analysis already running — please wait"); }catch(_){} return; }
+  if(pendingBook){ const pb=pendingBook;
     const closePicker=()=>{ $("#chapPicker").style.display="none"; $("#textArea").style.display=""; $("#overlay").classList.remove("show"); };
     // #4b : livre RECONNU → fusion incrémentale (n'analyser que les NOUVEAUX chapitres cochés)
     const known=findBookByFp(bookFp(pb));
@@ -2951,15 +2952,29 @@ async function consolidateEntities(entities, relations){
   return {entities:mergedEnt, relations:[...relMap.values()]};
 }
 
-async function analyzeBook(book){
+// ── Robustesse : verrou « traitement critique en cours » (zéro perte de données) ──
+function setBusy(info){ state.busy=info||null; }
+function clearBusy(){ state.busy=null; }
+function isBusy(){ return !!(state.busy && state.busy.critical); }
+// garde anti-fermeture : si une analyse tourne, le navigateur demande confirmation avant un F5/fermeture (évite la perte)
+window.addEventListener("beforeunload",e=>{ if(isBusy()){ e.preventDefault(); e.returnValue=""; return ""; } });
+
+async function analyzeBook(book, _resume){
   show("load"); const N=book.chapters.length;
-  const _anN=notifPush({icon:"📖",title:_nfr()?"Analyse du livre en cours":"Analyzing book",detail:book.title||"",status:"active"});
+  const _anN=notifPush({icon:"📖",title:_nfr()?"Analyse du livre en cours":"Analyzing book",detail:book.title||"",status:"active",critical:true});
+  setBusy({kind:"analyze",critical:true,label:book.title||""});
   const batches=[]; let cur={ch:[],chars:0};
   book.chapters.forEach((tx,idx)=>{ if(cur.chars>0 && cur.chars+tx.length>MAX_CHARS){ batches.push(cur); cur={ch:[],chars:0}; } cur.ch.push({idx,tx}); cur.chars+=tx.length; });
   if(cur.ch.length) batches.push(cur);
-  const allEnt=new Map(), allRel=new Map(), chapByGidx={}; const failedBatches=[];
+  // accumulateurs (réhydratés depuis le brouillon si on REPREND une analyse interrompue)
+  const allEnt=new Map((_resume&&_resume.allEnt)||[]), allRel=new Map((_resume&&_resume.allRel)||[]), chapByGidx=(_resume&&_resume.chapByGidx)||{}; const failedBatches=(_resume&&_resume.failedBatches)||[];
+  const startBatch=(_resume&&_resume.batchesDone)||0;
+  // brouillon de reprise : input complet + avancement, persisté en IDB. Les batches sont déterministes (book.chapters + MAX_CHARS) → reprendre au lot non terminé est sûr.
+  const _draftBook={title:book.title,chapters:book.chapters,nums:book.nums||null,lang:book.lang||"",titleAuto:!!book.titleAuto,srcTotal:book.srcTotal||N};
+  const _saveDraft=(done)=>idbPutDraft({book:_draftBook,perso:S.perso,pendingHash:state.pendingHash||null,pendingBookFp:state.pendingBookFp||null,totalBatches:batches.length,batchesDone:done,allEnt:[...allEnt],allRel:[...allRel],chapByGidx,failedBatches});
   try{
-    for(let bi=0;bi<batches.length;bi++){ const b=batches[bi];
+    if(!_resume) await _saveDraft(0);
+    for(let bi=startBatch;bi<batches.length;bi++){ const b=batches[bi];
       $("#loadTxt").textContent=t("ld.batch").replace("{x}",bi+1).replace("{m}",batches.length);
       const startPct=Math.round(100*b.ch[0].idx/N);
       const txt=b.ch.map(c=>"\n[CHAPITRE "+(c.idx+1)+"]\n"+c.tx).join("\n").slice(0,MAX_CHARS);
@@ -2970,7 +2985,7 @@ async function analyzeBook(book){
         try{ data=extractJSON(await callLLM(buildBatchPrompt(txt),6000,"batch "+(bi+1)+"/"+batches.length+(att?" ↻"+att:""))); }
         catch(e){ logEvent({kind:"batch-retry",error:"lot "+(bi+1)+" essai "+(att+1)+" : "+e.message}); if(att<2) await new Promise(r=>setTimeout(r,1200)); }
       }
-      if(!data){ logEvent({kind:"batch-skip",error:"lot "+(bi+1)+" abandonné après 3 essais"}); failedBatches.push(bi+1); continue; }
+      if(!data){ logEvent({kind:"batch-skip",error:"lot "+(bi+1)+" abandonné après 3 essais"}); failedBatches.push(bi+1); await _saveDraft(bi+1); continue; }
       const id2name={}; (data.entities||[]).forEach(e=>{ if(!e.name)return; id2name[e.id]=e.name; const k=norm(e.name);
         if(!allEnt.has(k)) allEnt.set(k,{name:e.name,known_as:e.known_as||"",type:e.type||"person",gender:e.gender||"",importance:e.importance||"secondary",note:e.note||"",reveal_pct:startPct});
         else { const ex=allEnt.get(k); if((e.importance||"")==="main") ex.importance="main"; if(!ex.gender&&e.gender) ex.gender=e.gender; } });
@@ -2981,6 +2996,7 @@ async function analyzeBook(book){
       (data.chapters||[]).forEach((c,k)=>{ const byN=(typeof c.n==="number"&&c.n>=1&&b.ch.some(x=>x.idx===c.n-1))?c.n-1:null;
         const gi=(byN!=null)?byN:(b.ch[k]?b.ch[k].idx:b.ch[0].idx+k);
         chapByGidx[gi]={title:c.title||"",court:c.court||"",moyen:c.moyen||"",start_pct:Math.round(100*gi/N)}; });
+      await _saveDraft(bi+1); // avancement sauvé après CHAQUE lot → reprise possible si coupure
     }
     if(!allEnt.size) throw new Error("Aucune entité extraite");
     // chapSums aligné 1:1 sur book.chapters ; chapitres non renvoyés par le LLM = entrée vide (→ fallback "Chapitre i+1")
@@ -2996,11 +3012,13 @@ async function analyzeBook(book){
     if(!detLang){ const sample=(book.chapters||[]).find(c=>c&&c.length>200)||(book.chapters||[])[0]||""; detLang=await detectBookLang(sample); }
     const data={title:finalTitle,language:detLang||S.uiLang,global:glob,chapters:chapSums,entities,relations,srcTotal:book.srcTotal||N,perso:S.perso}; // perso = ton d'écriture utilisé pour CETTE analyse (mémorisé par livre)
     state.analysis=data; state.voiceMap={}; state.marks=[]; state.rawChapters=(book.chapters||[]).map((tx,i)=>{ const num=(book.nums&&book.nums[i])||(i+1); return {text:tx,num,start_pct:Math.round(100*i/N),title:(chapSums[i]&&chapSums[i].title)||("Chapitre "+num)}; }); state.currentId=bookId(finalTitle); persistCurrent();
+    await idbDelDraft(); clearBusy(); // commit atomique réussi (livre en biblio + texte en IDB) → brouillon supprimé, verrou levé
     enableTabs(); buildGraph(); setRead(0); renderSummaries(); show("map"); // #15 : lecture démarre à 0% (anti-spoiler réel)
     toast("✦ "+finalTitle+" — "+entities.length+" · "+relations.length);
     notifSet(_anN,{status:"done",icon:"📖",title:_nfr()?"Analyse terminée":"Analysis complete",detail:finalTitle+" · "+entities.length+(_nfr()?" personnages & lieux":" entities")});
     if(failedBatches.length){ const FR=(S.uiLang||"fr")!=="en"; toast("⚠️ "+failedBatches.length+(FR?" lot(s) sans résumé — ré-analysez si besoin":" batch(es) without summary — re-analyze if needed")); }
-  }catch(err){ console.error(err); show("home"); $("#homeHint").textContent="⚠️ "+err.message; toast("Erreur : "+err.message); notifSet(_anN,{status:"error",icon:"⚠️",title:_nfr()?"Échec de l'analyse":"Analysis failed",detail:String(err.message||err).slice(0,80)}); }
+  }catch(err){ clearBusy(); console.error(err); show("home"); $("#homeHint").textContent="⚠️ "+err.message; toast("Erreur : "+err.message); notifSet(_anN,{status:"error",icon:"⚠️",title:_nfr()?"Échec de l'analyse":"Analysis failed",detail:String(err.message||err).slice(0,80)}); }
+  // NB : sur erreur, le brouillon de reprise est CONSERVÉ → l'analyse pourra reprendre (relance auto au prochain boot ou re-chargement du livre).
 }
 
 /* #4b — FUSION INCRÉMENTALE : analyser SEULEMENT les nouveaux chapitres et fusionner dans l'analyse existante.
@@ -3229,7 +3247,9 @@ $("#libChips").addEventListener("click",e=>{
 // Tri + recherche de la bibliothèque (Accueil)
 if($("#libToolbar")) $("#libToolbar").addEventListener("click",e=>{ const b=e.target.closest("[data-sort]"); if(!b)return; S.libSort=b.dataset.sort; saveStore(); renderLibrary(); });
 if($("#libSearch")) $("#libSearch").addEventListener("input",()=>renderLibrary());
-async function openCachedBook(b){ if(!b)return; state.analysis=b.analysis;
+async function openCachedBook(b){ if(!b)return;
+  if(isBusy()){ try{ toast(_nfr()?"⏳ Analyse en cours — patientez":"⏳ Analysis in progress — please wait"); }catch(_){} return; } // ne pas changer de livre pendant une analyse (intégrité)
+  state.analysis=b.analysis;
   // texte brut : présent en mémoire (session courante) sinon rechargé depuis IndexedDB (après un reload, localStorage ne le contient plus)
   let raw=(b.rawChapters&&b.rawChapters.length)?b.rawChapters:null; if(!raw){ try{ raw=await idbGetRaw(b.id); }catch(_){ raw=null; } if(raw) b.rawChapters=raw; }
   state.rawChapters=raw||[]; state.voiceMap=b.voiceMap||{}; state.marks=b.marks||[]; state.currentId=b.id; state.pendingHash=b.contentHash||null; state.pendingBookFp=b.bookFp||null; applyBookVoice(b.vset); /* réglages voix PAR LIVRE (ton/voix/vitesse/moteur) — défaut global si absent */ enableTabs(); buildGraph(); setRead(b.readPct!=null?b.readPct:100); renderSummaries();
@@ -3248,7 +3268,7 @@ function analyzedChapFps(entry){ return (entry&&entry.rawChapters||[]).map(rc=>c
 
 /* ---- Persistance IndexedDB : audio EL (binaire) + segmentation + traductions. Survit reload, anti-recoût/anti-crédits.
    3 stores keyés par empreinte de contenu, tagués bookId → suppression EN CASCADE quand un livre est oublié. ---- */
-const IDB_NAME="storyvoice", IDB_VER=3, IDB_STORES=["audio","seg","trans","img","raw"]; let _idb=null;
+const IDB_NAME="storyvoice", IDB_VER=4, IDB_STORES=["audio","seg","trans","img","raw","draft"]; let _idb=null;
 function idbOpen(){ return new Promise((res,rej)=>{ if(_idb)return res(_idb); if(!window.indexedDB)return rej(new Error("no idb"));
   const r=indexedDB.open(IDB_NAME,IDB_VER);
   r.onupgradeneeded=e=>{ const db=e.target.result; IDB_STORES.forEach(s=>{ if(!db.objectStoreNames.contains(s)){ const os=db.createObjectStore(s,{keyPath:"key"}); os.createIndex("bookId","bookId",{unique:false}); } }); };
@@ -3263,6 +3283,10 @@ function idbPut(store,rec){ return idbOpen().then(db=>new Promise(res=>{ try{ co
    IDB = quota ~50-200 Mo+ → fiable pour de vrais livres complets (indispensable en prod). */
 function idbPutRaw(bookId,rawChapters){ if(!bookId) return Promise.resolve(false); return idbPut("raw",{key:bookId,bookId,rawChapters:rawChapters||[]}); }
 function idbGetRaw(bookId){ if(!bookId) return Promise.resolve(null); return idbGet("raw",bookId).then(r=>(r&&r.rawChapters)||null); }
+/* #draft — brouillon de reprise d'une analyse interrompue (un seul à la fois, clé fixe "current"). Contient l'input complet + l'avancement (lots faits, accumulateurs) → une coupure (F5/crash/fermeture) ne perd rien et ne corrompt aucun livre existant (le livre n'est committé en biblio QU'à la fin, atomique). */
+function idbPutDraft(rec){ return idbPut("draft",{...(rec||{}),key:"current"}); }
+function idbGetDraft(){ return idbGet("draft","current"); }
+function idbDelDraft(){ return idbOpen().then(db=>new Promise(res=>{ try{ const rq=db.transaction("draft","readwrite").objectStore("draft").delete("current"); rq.onsuccess=()=>res(true); rq.onerror=()=>res(false); }catch(_){ res(false); } })).catch(()=>false); }
 function idbDelByBook(bookId){ if(!bookId) return Promise.resolve(); return idbOpen().then(db=>Promise.all(IDB_STORES.map(store=>new Promise(res=>{ try{
   const os=db.transaction(store,"readwrite").objectStore(store), rq=os.index("bookId").openCursor(IDBKeyRange.only(bookId));
   rq.onsuccess=e=>{ const cur=e.target.result; if(cur){ cur.delete(); cur.continue(); } else res(true); }; rq.onerror=()=>res(false);
@@ -5112,6 +5136,15 @@ loadStore(); PROVIDER=PROVIDERS[S.provider]||PROVIDERS.deepseek; maybeAutoResetB
 try{ (library||[]).forEach(b=>{ if(b&&b.id&&b.rawChapters&&b.rawChapters.length) idbPutRaw(b.id,b.rawChapters); }); }catch(_){}
 // Réouverture auto du dernier ebook ouvert (reprend où l'utilisateur en était : liseuse au chapitre+scroll, ou carte)
 if(S.lastBook){ const _lb=library.find(x=>x.id===S.lastBook); if(_lb&&_lb.analysis){ const _lt=S.lastTab; /* capturé AVANT : openCachedBook force read/map et écrase lastTab */ (async()=>{ try{ await openCachedBook(_lb); if(_lt&&["read","listen","sum","map","ask"].includes(_lt)) show(_lt); }catch(_){} })(); } }
+// Reprise AUTO d'une analyse interrompue (brouillon IDB incomplet). Reprend exactement où ça s'est arrêté (lots déjà faits conservés). Sans clé → on garde le brouillon pour plus tard (le visiteur ne peut pas analyser).
+(async()=>{ try{ const d=await idbGetDraft();
+  if(d && d.book && d.book.chapters && d.book.chapters.length && (d.batchesDone||0) < (d.totalBatches||0)){
+    if(!getSecret()) return; // pas de clé → reprise différée (brouillon conservé)
+    try{ toast(_nfr()?"Reprise de l'analyse interrompue…":"Resuming interrupted analysis…"); }catch(_){}
+    state.pendingHash=d.pendingHash||null; state.pendingBookFp=d.pendingBookFp||null;
+    analyzeBook({title:d.book.title,chapters:d.book.chapters,nums:d.book.nums,lang:d.book.lang,titleAuto:d.book.titleAuto,srcTotal:d.book.srcTotal}, d);
+  }
+}catch(_){} })();
 if(!getSecret()){ try{ document.body.classList.add("nokey"); }catch(_){} } // visiteur sans clé : PAS de modale token (cul-de-sac) → accueil avec la démo mise en avant
 // PWA — enregistrement du service worker (app shell offline ; n'intercepte JAMAIS le gateway, cf sw.js). Guard file:// → no-op en dev local.
 if("serviceWorker" in navigator && location.protocol!=="file:"){ window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(e=>console.warn("[SW] échec enregistrement", e)); }); }
