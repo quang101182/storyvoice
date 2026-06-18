@@ -475,7 +475,7 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.26.0</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.26.1</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -2081,7 +2081,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.26.0";
+const VERSION = "1.26.1";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -2367,9 +2367,9 @@ const PERSO = {
   dramatique:{fr:"Adopte un ton dramatique, intense et plein de tension.",en:"Use a dramatic, intense, suspenseful tone."}
 };
 
-// Défauts 1er lancement (mandat Quang) : multi-voix, ton « Automatique », couleur par personnage, images d'ambiance Auto, vitesse 1.
+// Défauts 1er lancement (mandat Quang) : multi-voix, ton « Automatique », couleur par personnage, images d'ambiance Auto, vitesse 1.4× (révision Quang 18/06 : les voix premium sont un peu lentes en 1.0, 1.4 = bon rythme ; playbackRate = instantané, sans recoût).
 // N'affecte QUE les nouveaux utilisateurs : une sauvegarde existante prime via {...DEFAULTS,...d.settings} dans loadStore.
-const DEFAULTS = { uiLang:(navigator.language||"").toLowerCase().startsWith("fr")?"fr":"en",/* international : FR si appareil en français, sinon EN (fallback) — le visiteur peut basculer via le toggle */ contentLang:"auto", perso:"neutre", persist:true, vol:100, budget:0, provider:"deepseek", narrMode:"multi", narrVoice:"", narrRate:100, listenWhat:"story", listenLang:"orig", listenEngine:"browser", colorSpeakers:true, elTone:"auto", elSpeed:1, elSpeedByVoice:{}, listenAdvOpen:true, budgetResetMode:"never", budgetResetDays:30, budgetResetLast:"", costHistMode:"day", costHistOpen:false, imgMode:"auto", lastBook:null, lastTab:null };
+const DEFAULTS = { uiLang:(navigator.language||"").toLowerCase().startsWith("fr")?"fr":"en",/* international : FR si appareil en français, sinon EN (fallback) — le visiteur peut basculer via le toggle */ contentLang:"auto", perso:"neutre", persist:true, vol:100, budget:0, provider:"deepseek", narrMode:"multi", narrVoice:"", narrRate:100, listenWhat:"story", listenLang:"orig", listenEngine:"browser", colorSpeakers:true, elTone:"auto", elSpeed:1.4, elSpeedByVoice:{}, listenAdvOpen:true, budgetResetMode:"never", budgetResetDays:30, budgetResetLast:"", costHistMode:"day", costHistOpen:false, imgMode:"auto", lastBook:null, lastTab:null };
 let S = {...DEFAULTS};
 const state = { text:"", analysis:null, readPct:100, len:"moyen", tab:"home", selected:null, currentId:null, mainOnly:false, askHistory:[], rawChapters:[], voiceMap:{}, narrTurns:null, pendingHash:null, readerIdx:0, readerScroll:0, _restoreScroll:false, marks:[], pendingBookFp:null };
 let library = [];
@@ -2576,7 +2576,7 @@ $("#btnDemo").onclick=()=>startDemo(S.uiLang==="en"?"en":"fr");
 $("#btnSettings").onclick=()=>{ syncSettingsUI(); prepSettingsForRole(); $("#setOverlay").classList.add("show"); };
 if($("#hdrCost")) $("#hdrCost").onclick=()=>openCost(); // bouton coût header → détail complet (overlay « Suivi & coûts »)
 // Clé sv_ (clients/funnel) : défaut voix PREMIUM GEMINI + ton AUTO → le client découvre d'emblée le meilleur en chargeant son livre. Puis il trouvera OpenAI (moins cher) / Local (gratuit) dans les menus. 1× par user (flag _svGeminiDefaulted, ré-applique le défaut Gemini même si déjà défaulté OpenAI avant). Respecte ensuite son choix. Legacy inchangé. (Dans l'init = s'exécute même pour un store frais.)
-if(isProKey() && !S._svGeminiDefaulted){ const e=(S.listenEngine||"browser"); if(e==="browser"||e==="openai") S.listenEngine="gemini"; if(!S.elTone) S.elTone="auto"; S._svGeminiDefaulted=true; if(S.persist){ try{ saveStore(); }catch(_){} } }
+if(isProKey() && !S._svGeminiDefaulted){ const e=(S.listenEngine||"browser"); if(e==="browser"||e==="openai") S.listenEngine="gemini"; if(!S.elTone) S.elTone="auto"; if(!S.elSpeed||S.elSpeed===1) S.elSpeed=1.4; S._svGeminiDefaulted=true; if(S.persist){ try{ saveStore(); }catch(_){} } }
 setTimeout(()=>{ try{ enhanceAllSelects(); renderHdrCost(); if(typeof syncListenUI==="function") syncListenUI(); if(isProKey()) refreshSvAccount().then(()=>renderHdrCost()); }catch(_){} },0); // init après exécution complète du script (dropdowns custom + bandeau coût/solde + reflète le moteur premium par défaut sv_ ; évite TDZ des const moteurs)
 $("#setClose").onclick=()=>$("#setOverlay").classList.remove("show");
 $("#setForget").onclick=()=>confirmAction(t("set.forgetConfirm"),forgetAll,null,{yes:t("confirm.delete")});
