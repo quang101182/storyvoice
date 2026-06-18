@@ -357,7 +357,8 @@
   .fold>summary::-webkit-details-marker{display:none}
   .fold>summary::before{content:"▸";transition:.2s;color:var(--txt-dim);font-size:12px}
   .fold[open]>summary::before{transform:rotate(90deg)}
-  .volpop{position:absolute;right:0;top:48px;z-index:40;background:#11142e;border:1px solid var(--panel-brd);border-radius:12px;padding:12px 14px;box-shadow:0 20px 50px rgba(0,0,0,.5);width:210px}
+  /* position:FIXED + placé au niveau .app (hors header) : le header a backdrop-filter (stacking context) qui piégeait ce popup DERRIÈRE le bandeau « J'ai lu jusqu'au » selon la largeur. Position calculée en JS depuis #btnVol. Même fix que #notifPanel. */
+  .volpop{position:fixed;z-index:60;background:#11142e;border:1px solid var(--panel-brd);border-radius:12px;padding:12px 14px;box-shadow:0 20px 50px rgba(0,0,0,.5);width:210px;max-width:calc(100vw - 16px)}
   /* --- Centre de notifications (panneau d'historique, ouvert depuis le bandeau-rectangle) --- */
   .notifpop{position:fixed;z-index:60;background:#11142e;border:1px solid var(--panel-brd);border-radius:14px;padding:8px;box-shadow:0 20px 50px rgba(0,0,0,.55);width:300px;max-width:92vw;max-height:66vh;overflow:auto}
   .notif-head{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 8px;border-bottom:1px solid var(--panel-brd);margin-bottom:6px}
@@ -472,7 +473,7 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
 <div class="app">
   <header>
     <div class="hdr-inner">
-    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.25.7</small></div>
+    <div class="logo"><span class="mark"></span>StoryVoice<small>v1.25.8</small></div>
     <nav class="tabs" id="tabs">
       <button class="tab active" data-view="home">✦<span class="lbl" data-i18n="nav.home"> Accueil</span></button>
       <button class="tab" data-view="read" disabled>📖 <span class="lbl" data-i18n="nav.read">Lire</span></button>
@@ -482,18 +483,17 @@ body.nokey #btnDemo:hover{filter:brightness(1.08)}
       <button class="tab" data-view="ask" disabled>💬 <span class="lbl" data-i18n="nav.ask">Demander</span></button>
     </nav>
     <button id="hdrCost" title="Coût d'utilisation du vocal — cliquer pour le détail" style="display:none;align-self:center;font:inherit;font-size:12px;color:var(--cyan);background:rgba(255,255,255,.06);border:1px solid var(--panel-brd);border-radius:20px;padding:6px 12px;white-space:nowrap;cursor:pointer">💰 <span id="hdrCostTxt"></span></button>
-    <div style="position:relative">
-      <button class="icon-btn" id="btnVol" title="Volume">🔊</button>
-      <div id="volPop" class="volpop" style="display:none">
-        <div class="hint" style="font-size:11.5px;margin-bottom:7px"><span data-i18n="vol.title">🔊 Volume des voix</span> : <b id="volPct" style="color:var(--cyan)">100%</b></div>
-        <input type="range" id="ttsVol" min="0" max="100" value="100" step="1" style="width:100%">
-      </div>
-    </div>
+    <button class="icon-btn" id="btnVol" title="Volume">🔊</button>
     <button class="icon-btn" id="btnSettings" title="Réglages">⚙</button>
     </div>
   </header>
   <!-- #notifPanel HORS du header : le header a backdrop-filter (= contexte d'empilement) qui piégeait le panneau DERRIÈRE l'activeBar / les sélecteurs de chapitre. Au niveau .app, son z-index:60 est effectif. -->
   <div id="notifPanel" class="notifpop" style="display:none"></div>
+  <!-- #volPop HORS du header (même raison que #notifPanel : backdrop-filter du header piégeait le popup derrière le contenu). Position calculée en JS depuis #btnVol. -->
+  <div id="volPop" class="volpop" style="display:none">
+    <div class="hint" style="font-size:11.5px;margin-bottom:7px"><span data-i18n="vol.title">🔊 Volume des voix</span> : <b id="volPct" style="color:var(--cyan)">100%</b></div>
+    <input type="range" id="ttsVol" min="0" max="100" value="100" step="1" style="width:100%">
+  </div>
   <!-- Notification = RECTANGLE DYNAMIQUE permanent (remplace la cloche, mandat Quang) : affiche l'événement en cours/récent
        en largeur SANS clic ; au repos = état neutre cliquable ; clic → panneau d'historique (même contenu que l'ex-cloche). Session only, 0 persistance. -->
   <div id="notifBanner" style="display:none" title="Notifications — appuyez pour l'historique">
@@ -2079,7 +2079,7 @@ title of _the_ woman.
 </script>
 <script>
 "use strict";
-const VERSION = "1.25.7";
+const VERSION = "1.25.8";
 const GATEWAY = "https://api-gateway.quang101182.workers.dev";
 const CRED_KEY = "storyvoice.cred"; // le token n'est JAMAIS dans le code : stocké uniquement sur l'appareil
 function getSecret(){ try{ return localStorage.getItem(CRED_KEY)||""; }catch(_){ return ""; } }
@@ -3787,7 +3787,8 @@ $("#famTree").addEventListener("click",e=>{ const ft=$("#famTree"); if(ft&&ft._s
 
 function syncVolUI(){ const s=$("#ttsVol"); if(!s)return; s.value=S.vol??100; $("#volPct").textContent=(S.vol??100)+"%"; }
 $("#ttsVol").oninput=e=>{ S.vol=+e.target.value; $("#volPct").textContent=S.vol+"%"; if(elAudio) elAudio.volume=S.vol/100; /* live sur le son EL en cours (Web Speech ne peut pas changer en cours → passage suivant) */ saveStore(); };
-$("#btnVol").onclick=e=>{ e.stopPropagation(); const p=$("#volPop"); p.style.display=p.style.display==="none"?"block":"none"; };
+$("#btnVol").onclick=e=>{ e.stopPropagation(); const p=$("#volPop"), b=$("#btnVol"); if(p.style.display!=="none"){ p.style.display="none"; return; }
+  const r=b.getBoundingClientRect(); p.style.top=(r.bottom+6)+"px"; p.style.right=Math.max(8,innerWidth-r.right)+"px"; p.style.left="auto"; p.style.display="block"; };
 document.addEventListener("click",e=>{ if(!e.target.closest("#volPop")&&!e.target.closest("#btnVol")) $("#volPop").style.display="none"; });
 
 /* ---------------- Narration (étape A : simple + multi-voix Web Speech) ---------------- */
