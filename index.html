@@ -2226,7 +2226,7 @@ function openUnlock(){ const FR=(S.uiLang||"fr")!=="en"; let ov=$("#unlockOverla
 // Modèles d'analyse texte (tous OpenAI-compatibles via le gateway → callLLM inchangé)
 const PROVIDERS = {
   deepseek:{ endpoint:"/api/deepseek", model:"deepseek-v4-flash", label:"DeepSeek V4 — équilibré (défaut)" },
-  groq:{ endpoint:"/api/groq", model:"llama-3.3-70b-versatile", label:"Groq Llama 3.3 70B — ultra-rapide" },
+  groq:{ endpoint:"/api/groq", model:"qwen/qwen3.6-27b", extra:{reasoning_effort:"none"}, label:"Groq Qwen 3.6 27B — ultra-rapide" },
   openai:{ endpoint:"/api/openai", model:"gpt-4o-mini", label:"GPT-4o mini — OpenAI" }
 };
 let PROVIDER = PROVIDERS.deepseek;
@@ -2748,7 +2748,7 @@ $("#swPersist").onchange=e=>{ S.persist=e.target.checked; if(S.persist) saveStor
 // autres = approximatifs. Entrées deepseek-chat / -reasoner retirées le 25/07/2026 : noms supprimés par DeepSeek.
 const PRICES={
   "deepseek-v4-flash":{in:0.14,out:0.28}, "deepseek-v4-pro":{in:1.74,out:6.96},
-  "llama-3.3-70b":{in:0.59,out:0.79}, "gpt-4o-mini":{in:0.15,out:0.60}, "gpt-4o":{in:2.5,out:10},
+  "qwen/qwen3.6-27b":{in:0.29,out:0.59}, "gpt-4o-mini":{in:0.15,out:0.60}, "gpt-4o":{in:2.5,out:10},
   "claude-sonnet":{in:3,out:15}, "claude-haiku":{in:0.8,out:4},
   "gemini-1.5-flash":{in:0.075,out:0.30}, "gemini":{in:0.075,out:0.30},
   "kimi":{in:0.30,out:2.50}, "moonshot":{in:0.30,out:2.50}, "_default":{in:0.27,out:1.10}
@@ -2781,9 +2781,12 @@ async function callLLM(prompt, maxTokens=4800, kind="analyse"){
   // Mode prépayé sv_ : le gateway-pro n'expose que DeepSeek (cerveau) + OpenAI (voix) → forcer DeepSeek pour TOUT l'analyse LLM.
   const _llmEp = isProKey() ? "/api/deepseek" : PROVIDER.endpoint;
   const _llmModel = isProKey() ? "deepseek-v4-flash" : PROVIDER.model;
+  // Champs propres au provider (ex: reasoning_effort de qwen). JAMAIS vers DeepSeek,
+  // qui refuse reasoning_effort:"none" en HTTP 400 -> {} des que le mode Pro force DeepSeek.
+  const _llmExtra = isProKey() ? {} : (PROVIDER.extra||{});
   let res; try{ res=await _fetchTO(gwBase()+_llmEp,{method:"POST",
     headers:{...authHdr(),"Content-Type":"application/json"},
-    body:JSON.stringify({model:_llmModel,messages:[{role:"user",content:prompt}],temperature:0.3,max_tokens:maxTokens})}, 120000);
+    body:JSON.stringify({model:_llmModel,..._llmExtra,messages:[{role:"user",content:prompt}],temperature:0.3,max_tokens:maxTokens})}, 120000);
   }catch(e){ const msg=(e&&e.name==="AbortError")?("timeout "+kind+" (120s)"):("réseau : "+((e&&e.message)||e)); logEvent({kind,error:msg}); throw new Error(msg); }
   if(!res.ok){ const tx=(await res.text()).slice(0,160); logEvent({kind,error:"HTTP "+res.status+" "+tx}); throw new Error("HTTP "+res.status+" "+tx); }
   const j=await res.json(); recordUsage(kind,j&&j.usage,Date.now()-t0,j&&j.model);
@@ -4357,7 +4360,7 @@ function _fetchTO(url, opts, ms){ const ac=new AbortController(); const id=setTi
 // L'étape "ambiance" = tâche courte et générique → Groq (≈0.5s) plutôt que le modèle d'analyse (DeepSeek peut traîner). Indépendant du provider choisi.
 async function callGroqFast(prompt, maxTokens){ const sec=getSecret(); if(!sec) throw new Error("no key");
   const res=await _fetchTO(gwBase()+"/api/groq",{ method:"POST", headers:{...authHdr(),"Content-Type":"application/json"},
-    body:JSON.stringify({ model:"llama-3.3-70b-versatile", messages:[{role:"user",content:prompt}], temperature:0.4, max_tokens:maxTokens||320 }) }, 20000);
+    body:JSON.stringify({ model:"qwen/qwen3.6-27b", reasoning_effort:"none", messages:[{role:"user",content:prompt}], temperature:0.4, max_tokens:maxTokens||320 }) }, 20000);
   if(!res.ok) throw new Error("groq "+res.status); const j=await res.json();
   return (j&&j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||""; }
 async function detectAmbiance(book){ if(book && book.ambiance) return book.ambiance; if(!getSecret()) return null;
