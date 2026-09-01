@@ -16,3 +16,9 @@ _mobile_credits.jpg
 *.b64
 .browser-automation/
 demo/_pregen.log
+
+# Sauvegardes horodatees (.bak-pre-*) : elles ne doivent JAMAIS partir dans un depot
+# public. Ajoute le 01/09/2026, le jour ou des .bak de llm.py ont ete trouves porteurs
+# d'un secret dans le depot llm-cli.
+*.bak
+*.bak-*
