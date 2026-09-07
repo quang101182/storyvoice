@@ -2750,7 +2750,7 @@ const PRICES={
   "deepseek-v4-flash":{in:0.14,out:0.28}, "deepseek-v4-pro":{in:1.74,out:6.96},
   "qwen/qwen3.8-27b":{in:0.29,out:0.59}, "gpt-4o-mini":{in:0.15,out:0.60}, "gpt-4o":{in:2.5,out:10},
   "claude-sonnet":{in:3,out:15}, "claude-haiku":{in:0.8,out:4},
-  "gemini-1.5-flash":{in:0.075,out:0.30}, "gemini":{in:0.075,out:0.30},
+  "gemini":{in:0.075,out:0.30},
   "kimi":{in:0.30,out:2.50}, "moonshot":{in:0.30,out:2.50}, "_default":{in:0.27,out:1.10}
 };
 function priceFor(model){ const m=(model||"").toLowerCase(); for(const k in PRICES){ if(k!=="_default"&&m.indexOf(k)>=0) return PRICES[k]; } return PRICES._default; }
